@@ -32,7 +32,7 @@ void verifyMMfile(int *N, int *nz, char *filename)
     fclose(f);
 }
 
-void readMM(std::vector<int> *A, char *filename, int N, int nz)
+void readMM(std::vector<int> &A, char *filename, int N, int nz)
 {
     FILE *f = fopen(filename, "r");
 
@@ -49,7 +49,7 @@ void readMM(std::vector<int> *A, char *filename, int N, int nz)
     for (index = 0; index < (nz); index++)
     {
         fscanf(f, "%d %d %d\n", &i, &j, &val);
-        (*A)[(--i) * N + (--j)] = val; // we assume that all items of A are initialized to zero and that the matrix indexes in the file start from 1
+        A[(--i) * N + (--j)] = val; // we assume that all items of A are initialized to zero and that the matrix indexes in the file start from 1
     }
 
     if (f != stdin)
