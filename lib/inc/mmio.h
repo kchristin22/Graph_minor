@@ -5,6 +5,8 @@
  *
  *
  */
+#pragma once
+
 #include <stdio.h>
 
 #ifndef MM_IO_H
