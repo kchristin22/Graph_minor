@@ -1,3 +1,3 @@
 #include "mmio.h"
 
-void writeMM(int nz, int N);
+void writeMM(char *filename, int N, int nz);

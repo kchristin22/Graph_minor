@@ -13,7 +13,7 @@
         "-o",
         "${fileDirname}/${fileBasenameNoExtension}",
         "-I${workspaceFolder}/lib/inc",
-        "-I${workspaceFolder}/inc"
+        "-I${workspaceFolder}/inc",
       ],
       "options": {
         "cwd": "${fileDirname}"
