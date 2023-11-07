@@ -7,16 +7,9 @@
 #include "cmath"
 
 template <size_t n>
-void seq(int *M, size_t *L, size_t A[n][n], size_t c[n])
+void seq(std::vector<int> *M, size_t *L, size_t A[n][n], size_t c[n])
 {
     printf("Hello from seq\n");
-
-    // check in main:
-    // if ((A[0].size() != n) || (A.size() != (size_t)(pow(n, 2))) || (c.size() != n))
-    // {
-    //     printf("Error: Incorrect size of A or c\n");
-    //     exit(1);
-    // }
 
     size_t n2 = (size_t)pow(n, 2);
     std::vector<size_t> row(n);             // offset of val vector for each row
@@ -37,6 +30,7 @@ void seq(int *M, size_t *L, size_t A[n][n], size_t c[n])
             x = A[i][j];
             if (x == 0)
                 continue;
+
             val[allCount] = x;
             col[allCount] = c[j] - 1;
             allCount++;
@@ -56,7 +50,7 @@ void seq(int *M, size_t *L, size_t A[n][n], size_t c[n])
     *L = nclus;
 
     size_t end;
-    int colCompressed[n][nclus] = {0};
+    std::vector<int> colCompressed(n * nclus, 0);
 
     for (size_t i = 0; i < n; i++)
     {
@@ -66,13 +60,13 @@ void seq(int *M, size_t *L, size_t A[n][n], size_t c[n])
             end = row[i + 1];
         for (size_t j = row[i]; j < end; j++)
         {
-            colCompressed[i][col[j]] += val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
+            colCompressed[i * nclus + col[j]] += val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
     // if ids are continuous they don't need sorting
 
-    M = (int *)realloc(M, nclus * nclus * sizeof(int));
+    M->resize(nclus * nclus);
 
     for (size_t id = 1; id < (nclus + 1); id++)
     {
@@ -80,9 +74,10 @@ void seq(int *M, size_t *L, size_t A[n][n], size_t c[n])
         {
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
+
             for (size_t j = 0; j < nclus; j++)
             {
-                M[(id - 1) * nclus + j] += colCompressed[i][j]; // compress rows of colCompressed by summing the rows of each cluster to the row of M the cluster id points to
+                (*M)[(id - 1) * nclus + j] += colCompressed[i * nclus + j]; // compress rows of colCompressed by summing the rows of each cluster to the row of M the cluster id points to
             }
         }
     }
