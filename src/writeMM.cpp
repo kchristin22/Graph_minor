@@ -16,7 +16,7 @@ void writeMM(char *filename, int N, int nz)
   {
     I[i] = rand() % N;
     J[i] = rand() % N;
-    val[i] = rand() % 10;
+    val[i] = rand() % 10 + 1; // don't include zero
   }
 
   std::sort(I, I + nz);
