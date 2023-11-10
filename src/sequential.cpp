@@ -1,9 +1,8 @@
 #include "sequential.hpp"
 #include "stdio.h"
 #include "cstdlib"
-#include "cmath"
 
-void seq(std::vector<int> &M, size_t *L, std::vector<int> &A, std::vector<size_t> &c)
+void seqDense(std::vector<int> &M, size_t *L, std::vector<int> &A, std::vector<size_t> &c)
 {
     printf("Hello from seq\n");
 
@@ -14,7 +13,7 @@ void seq(std::vector<int> &M, size_t *L, std::vector<int> &A, std::vector<size_t
     }
     size_t n = c.size();
 
-    size_t n2 = (size_t)pow(n, 2);
+    size_t n2 = (n * n);
     std::vector<size_t> row(n);             // offset of val vector for each row
     std::vector<size_t> col(n2);            // cluster id of the column of each element of val vector
     std::vector<int> val(n2);               // vector containing the non-zero elements (negative of positive) of A
@@ -64,6 +63,67 @@ void seq(std::vector<int> &M, size_t *L, std::vector<int> &A, std::vector<size_t
         for (size_t j = row[i]; j < end; j++)
         {
             colCompressed[i * nclus + col[j]] += val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
+        }
+    }
+
+    // if ids are continuous they don't need sorting
+
+    M.resize(nclus * nclus);
+
+    for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
+    {
+        for (size_t i = 0; i < n; i++)
+        {
+            if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
+                continue;
+
+            for (size_t j = 0; j < nclus; j++)
+            {
+                M[(id - 1) * nclus + j] += colCompressed[i * nclus + j]; // compress rows of colCompressed by summing the rows of each cluster to the row of M the cluster id points to
+            }
+        }
+    }
+};
+
+void seq(std::vector<int> &M, size_t *L, std::vector<int> &A, std::vector<size_t> &c)
+{
+    printf("Hello from seq\n");
+
+    if (A.size() != (c.size() * c.size()))
+    {
+        printf("Error: sizes of A and c are incompatible\n");
+        exit(1);
+    }
+    size_t n = c.size();
+
+    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+
+    for (size_t i = 0; i < n; i++)
+    {
+        discreetClus[c[i] - 1] += 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+                                     // by atomically adding 1 to the cluster of the ith row we know how many nodes are in each cluster
+    }
+
+    size_t nclus = 0;
+    for (size_t i = 0; i < n; i++)
+    {
+        if (discreetClus[i] == 0)
+            continue;
+        nclus += 1;
+    }
+    *L = nclus;
+
+    int val;
+    std::vector<int> colCompressed(n * nclus, 0);
+
+    for (size_t i = 0; i < n; i++)
+    {
+        for (size_t j = 0; j < n; j++)
+        {
+            val = A[i * n + j];
+            if (val == 0)
+                continue;
+            colCompressed[i * nclus + c[j] - 1] += val; // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
