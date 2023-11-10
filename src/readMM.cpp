@@ -67,3 +67,29 @@ void readMM(std::vector<int> &A, char *filename, int N, int nz)
     //     fprintf(stdout, "\n");
     // }
 }
+
+void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<int> &V, char *filename, int N, int nz)
+{
+
+    FILE *f = fopen(filename, "r");
+
+    /* NOTE: when reading in doubles, ANSI C requires the use of the "l"  */
+    /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
+    /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
+
+    for (int i = 0; i < 2; i++)
+    {
+        fscanf(f, "%*[^\n]\n"); // skip first 2 lines, because fscanf doesn't move to the next line if not successfull
+    }
+
+    int index;
+    for (index = 0; index < (nz); index++)
+    {
+        fscanf(f, "%d %d %d\n", &I[index], &J[index], &V[index]);
+        I[index]--;
+        J[index]--;
+    }
+
+    if (f != stdin)
+        fclose(f);
+}

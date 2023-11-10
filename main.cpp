@@ -2,9 +2,57 @@
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "openMP.hpp"
+#include "cmath"
 
-#define N 20
-#define nz 10
+/* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val) */
+void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val,
+         std::vector<size_t> &I, std::vector<size_t> &J, std::vector<int> &V, size_t N, bool symmetrical)
+{
+    if (I.size() != J.size() || I.size() != V.size())
+    {
+        printf("Error: at least one of the pairs has unmatched dimensions: (I,J), (I,V) \n");
+        exit(1);
+    }
+    if ((row.size() != N) || (col.size() != J.size()) || (val.size() != V.size()))
+    {
+        printf("Error: at least one of the outputs has wrong dimensions \n");
+        exit(1);
+    }
+
+    size_t nz = val.size();
+
+    size_t x = 0, rowIndex = 0, count = 0;
+
+    if (symmetrical) // we can take advantage of the J vector being sorted and use that vector as the row index
+    {
+        row[0] = 0;
+        for (size_t index = 0; index < nz; index++)
+        {
+            if (J[index] != x)
+            {
+                row[++rowIndex] = index;
+                x = J[index]; // new row
+            }
+            col[index] = I[index];
+            val[index] = V[index];
+        }
+    }
+    else
+    {
+        for (size_t index = 0; index < N; index++)
+        {
+            row[index] = count;
+            for (size_t j = 0; j < nz; j++)
+            {
+                if (I[j] != index)
+                    continue;
+                col[count] = J[j];
+                val[count] = V[j];
+                count++;
+            }
+        }
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -17,27 +65,35 @@ int main(int argc, char *argv[])
 
     char *filename = (char *)argv[1];
 
-    int Nread;
+    int Nread, A2Nread, A2nzread;
     int nzread;
 
-    writeMM(filename, 20, 10);
+    // writeMM(filename, 4, 10);
     verifyMMfile(&Nread, &nzread, filename);
 
     std::vector<int> A(Nread * Nread, 0);
     readMM(A, filename, Nread, nzread);
 
+    // verifyMMfile(&A2Nread, &A2nzread, filename);
+    // std::vector<int> A2(Nread * Nread, 0);
+
     std::vector<size_t> conf(Nread);
-    for (size_t i = 0; i < Nread; i++)
-    {
-        conf[i] = rand() % 5;
-        printf("%ld ", conf[i]);
-    }
-    printf("\n");
+    // for (size_t i = 0; i < Nread; i++)
+    // {
+    //     conf[i] = rand() % 2 + 1;
+    //     printf("%ld ", conf[i]);
+    // }
+    conf[0] = 2;
+    conf[1] = 1;
+    conf[2] = 1;
+    conf[3] = 1;
+    // printf("\n");
 
     std::vector<int> M(Nread * Nread, 0); // nz x nz max
-    size_t L;
 
-    seq(M, &L, A, conf);
+    seq(M, A, conf);
+    size_t L = (size_t)sqrt(M.size()); // maybe dangerous, consider adding it again as an input arg
+
     for (size_t i = 0; i < L; i++)
     {
         for (size_t j = 0; j < L; j++)
@@ -46,6 +102,61 @@ int main(int argc, char *argv[])
         }
         printf("\n");
     }
+    std::vector<size_t> I(nzread, 0);
+    std::vector<size_t> J(nzread, 0);
+    std::vector<int> V(nzread, 0);
+
+    std::vector<size_t> row(Nread, 0);
+    std::vector<size_t> col(nzread, 0);
+    std::vector<int> val(nzread, 0);
+
+    readMM(I, J, V, filename, Nread, nzread);
+    csr(row, col, val, I, J, V, Nread, false);
+
+    for (size_t i = 0; i < nzread; i++)
+    {
+        printf("%d %d %d \n", I[i], J[i], V[i]);
+    }
+    printf("CSR:\n");
+    printf("row: ");
+    for (size_t i = 0; i < row.size(); i++)
+    {
+        printf("%d ", row[i]);
+    }
+    printf("\ncol: ");
+    for (size_t i = 0; i < col.size(); i++)
+    {
+        printf("%d ", col[i]);
+    }
+    printf("\nval: ");
+    for (size_t i = 0; i < val.size(); i++)
+    {
+        printf("%d ", val[i]);
+    }
+    printf("\n");
+
+    std::vector<size_t> rowM(Nread, 0);
+    std::vector<size_t> colM(nzread, 0);
+    std::vector<int> valM(nzread, 0);
+
+    seq(rowM, colM, valM, row, col, val, conf);
+
+    printf("rowM: ");
+    for (size_t i = 0; i < rowM.size(); i++)
+    {
+        printf("%d ", rowM[i]);
+    }
+    printf("\ncolM: ");
+    for (size_t i = 0; i < colM.size(); i++)
+    {
+        printf("%d ", colM[i]);
+    }
+    printf("\nvalM: ");
+    for (size_t i = 0; i < valM.size(); i++)
+    {
+        printf("%d ", valM[i]);
+    }
+    printf("\n");
 
     printMP();
     return 0;
