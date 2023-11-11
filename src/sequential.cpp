@@ -24,8 +24,6 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 
 void seq(std::vector<int> &M, std::vector<int> &A, std::vector<size_t> &c)
 {
-    printf("Hello from seq\n");
-
     if (A.size() != (c.size() * c.size()))
     {
         printf("Error: sizes of A and c are incompatible\n");
@@ -36,17 +34,17 @@ void seq(std::vector<int> &M, std::vector<int> &A, std::vector<size_t> &c)
 
     numClusters(nclus, c);
 
-    int val;
+    int x;
     std::vector<int> colCompressed(n * nclus, 0);
 
     for (size_t i = 0; i < n; i++)
     {
         for (size_t j = 0; j < n; j++)
         {
-            val = A[i * n + j];
-            if (val == 0)
+            x = A[i * n + j];
+            if (x == 0)
                 continue;
-            colCompressed[i * nclus + c[j] - 1] += val; // compress cols by summing the values of each cluster to the column the cluster id points to
+            colCompressed[i * nclus + c[j] - 1] += x; // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
@@ -72,8 +70,6 @@ void seq(std::vector<int> &M, std::vector<int> &A, std::vector<size_t> &c)
 void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM,
          std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val, std::vector<size_t> &c)
 {
-    printf("Hello from seq\n");
-
     if (row.size() != c.size())
     {
         printf("Error: sizes of row and c are incompatible\n");
@@ -150,8 +146,6 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> 
 
 void seqDenseCSR(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM, std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val, std::vector<size_t> &c)
 {
-    printf("Hello from seq\n");
-
     if (row.size() != c.size())
     {
         printf("Error: sizes of row and c are incompatible\n");
@@ -198,8 +192,6 @@ void seqDenseCSR(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vect
     // if ids are continuous they don't need sorting
 
     std::vector<int> M(nclus * nclus, 0);
-
-    printf("Here \n");
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {                                           // access one row of M at a time
