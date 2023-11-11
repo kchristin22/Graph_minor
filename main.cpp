@@ -3,6 +3,7 @@
 #include "readMM.hpp"
 #include "openMP.hpp"
 #include "cmath"
+#include "sys/time.h"
 
 /* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val) */
 void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val,
@@ -65,7 +66,7 @@ int main(int argc, char *argv[])
 
     char *filename = (char *)argv[1];
 
-    int Nread, A2Nread, A2nzread;
+    int Nread;
     int nzread;
 
     // writeMM(filename, 4, 10);
@@ -78,20 +79,21 @@ int main(int argc, char *argv[])
     // std::vector<int> A2(Nread * Nread, 0);
 
     std::vector<size_t> conf(Nread);
-    // for (size_t i = 0; i < Nread; i++)
-    // {
-    //     conf[i] = rand() % 2 + 1;
-    //     printf("%ld ", conf[i]);
-    // }
-    conf[0] = 2;
-    conf[1] = 1;
-    conf[2] = 1;
-    conf[3] = 1;
-    // printf("\n");
+    for (size_t i = 0; i < Nread; i++)
+    {
+        conf[i] = rand() % 2 + 1;
+        printf("%ld ", conf[i]);
+    }
+    printf("\n");
 
     std::vector<int> M(Nread * Nread, 0); // nz x nz max
 
+    struct timeval before, after;
+    gettimeofday(&before, NULL);
     seq(M, A, conf);
+    gettimeofday(&after, NULL);
+    printf("dense time: %ld\n", ((after.tv_sec * 1000000 + after.tv_usec) - (before.tv_sec * 1000000 + before.tv_usec)));
+
     size_t L = (size_t)sqrt(M.size()); // maybe dangerous, consider adding it again as an input arg
 
     for (size_t i = 0; i < L; i++)
@@ -113,33 +115,63 @@ int main(int argc, char *argv[])
     readMM(I, J, V, filename, Nread, nzread);
     csr(row, col, val, I, J, V, Nread, false);
 
-    for (size_t i = 0; i < nzread; i++)
-    {
-        printf("%d %d %d \n", I[i], J[i], V[i]);
-    }
-    printf("CSR:\n");
-    printf("row: ");
-    for (size_t i = 0; i < row.size(); i++)
-    {
-        printf("%d ", row[i]);
-    }
-    printf("\ncol: ");
-    for (size_t i = 0; i < col.size(); i++)
-    {
-        printf("%d ", col[i]);
-    }
-    printf("\nval: ");
-    for (size_t i = 0; i < val.size(); i++)
-    {
-        printf("%d ", val[i]);
-    }
-    printf("\n");
+    // for (size_t i = 0; i < nzread; i++)
+    // {
+    //     printf("%d %d %d \n", I[i], J[i], V[i]);
+    // }
+    // printf("CSR:\n");
+    // printf("row: ");
+    // for (size_t i = 0; i < row.size(); i++)
+    // {
+    //     printf("%d ", row[i]);
+    // }
+    // printf("\ncol: ");
+    // for (size_t i = 0; i < col.size(); i++)
+    // {
+    //     printf("%d ", col[i]);
+    // }
+    // printf("\nval: ");
+    // for (size_t i = 0; i < val.size(); i++)
+    // {
+    //     printf("%d ", val[i]);
+    // }
+    // printf("\n");
 
     std::vector<size_t> rowM(Nread, 0);
     std::vector<size_t> colM(nzread, 0);
     std::vector<int> valM(nzread, 0);
 
+    gettimeofday(&before, NULL);
+    seqDenseCSR(rowM, colM, valM, row, col, val, conf);
+    gettimeofday(&after, NULL);
+    printf("semi-dense time: %ld\n", ((after.tv_sec * 1000000 + after.tv_usec) - (before.tv_sec * 1000000 + before.tv_usec)));
+
+    printf("rowM: ");
+    for (size_t i = 0; i < rowM.size(); i++)
+    {
+        printf("%d ", rowM[i]);
+    }
+    printf("\ncolM: ");
+    for (size_t i = 0; i < colM.size(); i++)
+    {
+        printf("%d ", colM[i]);
+    }
+    printf("\nvalM: ");
+    for (size_t i = 0; i < valM.size(); i++)
+    {
+        printf("%d ", valM[i]);
+    }
+    printf("\n");
+
+    colM.resize(nzread, 0);
+    valM.resize(nzread, 0);
+    rowM.resize(Nread, 0);
+
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
     seq(rowM, colM, valM, row, col, val, conf);
+    gettimeofday(&end, NULL);
+    printf("CSR time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
     printf("rowM: ");
     for (size_t i = 0; i < rowM.size(); i++)
@@ -159,5 +191,6 @@ int main(int argc, char *argv[])
     printf("\n");
 
     printMP();
+
     return 0;
 }
