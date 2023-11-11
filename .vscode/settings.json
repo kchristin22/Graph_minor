@@ -1,5 +1,5 @@
 {
   "cmake.debugConfig": {
-    "args": ["GD95_a.mtx"]
+    "args": ["sd2010.mtx"]
   }
 }

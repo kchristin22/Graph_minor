@@ -69,41 +69,39 @@ int main(int argc, char *argv[])
     int Nread;
     int nzread;
 
-    // writeMM(filename, 4, 10);
     verifyMMfile(&Nread, &nzread, filename);
 
-    std::vector<int> A(Nread * Nread, 0);
-    readMM(A, filename, Nread, nzread);
+    // std::vector<int> A(Nread * Nread, 0);
 
-    // verifyMMfile(&A2Nread, &A2nzread, filename);
-    // std::vector<int> A2(Nread * Nread, 0);
+    // readMM(A, filename, Nread, nzread);
 
     std::vector<size_t> conf(Nread);
-    for (size_t i = 0; i < Nread; i++)
+    for (int i = 0; i < Nread; i++)
     {
-        conf[i] = rand() % 2 + 1;
-        printf("%ld ", conf[i]);
+        conf[i] = rand() % 100 + 1;
+        //     printf("%ld ", conf[i]);
     }
-    printf("\n");
+    // printf("\n");
 
-    std::vector<int> M(Nread * Nread, 0); // nz x nz max
+    // std::vector<int> M(Nread * Nread, 0); // nz x nz max
 
     struct timeval before, after;
-    gettimeofday(&before, NULL);
-    seq(M, A, conf);
-    gettimeofday(&after, NULL);
-    printf("dense time: %ld\n", ((after.tv_sec * 1000000 + after.tv_usec) - (before.tv_sec * 1000000 + before.tv_usec)));
+    // gettimeofday(&before, NULL);
+    // seq(M, A, conf);
+    // gettimeofday(&after, NULL);
+    // printf("dense time: %ld\n", ((after.tv_sec * 1000000 + after.tv_usec) - (before.tv_sec * 1000000 + before.tv_usec)));
+    // A.~vector();
 
-    size_t L = (size_t)sqrt(M.size()); // maybe dangerous, consider adding it again as an input arg
+    // size_t L = (size_t)sqrt(M.size()); // maybe dangerous, consider adding it again as an input arg
 
-    for (size_t i = 0; i < L; i++)
-    {
-        for (size_t j = 0; j < L; j++)
-        {
-            printf("%d ", M[(i * L) + j]);
-        }
-        printf("\n");
-    }
+    // for (size_t i = 0; i < L; i++)
+    // {
+    //     for (size_t j = 0; j < L; j++)
+    //     {
+    //         printf("%d ", M[(i * L) + j]);
+    //     }
+    //     printf("\n");
+    // }
     std::vector<size_t> I(nzread, 0);
     std::vector<size_t> J(nzread, 0);
     std::vector<int> V(nzread, 0);
@@ -141,56 +139,54 @@ int main(int argc, char *argv[])
     std::vector<size_t> colM(nzread, 0);
     std::vector<int> valM(nzread, 0);
 
-    gettimeofday(&before, NULL);
-    seqDenseCSR(rowM, colM, valM, row, col, val, conf);
-    gettimeofday(&after, NULL);
-    printf("semi-dense time: %ld\n", ((after.tv_sec * 1000000 + after.tv_usec) - (before.tv_sec * 1000000 + before.tv_usec)));
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    seq(rowM, colM, valM, row, col, val, conf);
+    gettimeofday(&end, NULL);
+    printf("seq time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%d ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%d ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
-    printf("\n");
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%d ", valM[i]);
+    // }
+    // printf("\n");
 
     colM.resize(nzread, 0);
     valM.resize(nzread, 0);
     rowM.resize(Nread, 0);
 
-    struct timeval start, end;
     gettimeofday(&start, NULL);
-    seq(rowM, colM, valM, row, col, val, conf);
+    openMP(rowM, colM, valM, row, col, val, conf);
     gettimeofday(&end, NULL);
-    printf("CSR time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
+    printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%d ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%d ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
-    printf("\n");
-
-    printMP();
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%d ", valM[i]);
+    // }
+    // printf("\n");
 
     return 0;
 }
