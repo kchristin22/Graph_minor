@@ -5,8 +5,6 @@
 #include "stdio.h"
 #include "vector"
 
-void printMP();
-
 inline void numClusters(size_t &nclus, std::vector<size_t> &c);
 
 void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM,

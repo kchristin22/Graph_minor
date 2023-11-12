@@ -2,13 +2,6 @@
 #include "cstdlib"
 #include "cstring"
 
-void printMP()
-{
-    omp_set_num_threads(4);
-#pragma omp parallel
-    printf("Hello from openMP\n");
-}
-
 inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 {
     size_t n = c.size();
@@ -69,15 +62,16 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
     size_t nz = val.size();
     size_t nclus;
 
-    numClusters(nclus, c);
+    numClusters(nclus, c); // find the number of distinct clusters
 
-    size_t end, clusterHasElements, allCount = 0, localCount = 0; // store offset to assign to each rowM element
-    int auxValueVector[nclus]{0};                                 // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                                           // resize vector to the number of clusters
+    size_t end, clusterHasElements, allCount = 0, localCount;
+    int auxValueVector[nclus]{0}; // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    rowM.resize(nclus);           // resize vector to the number of clusters
 
-    size_t chunk = n / 16; // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes)
+    size_t chunk = n / 16; // how many cache lines the array fills:
+                           // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
     size_t numThreads = 4;
-    if (!chunk)
+    if (!chunk) // the array of the smallest type (int < size_t) fits in a cache line
     {
         chunk = n;
         numThreads = 1;
@@ -85,20 +79,25 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
 
     size_t chunkClus = nclus / 16;
     size_t numThreadsClus = 4;
-    if (!chunkClus)
+    if (!chunkClus) // the auxValueVector array fits in a cache line
     {
         chunkClus = nclus;
         numThreadsClus = 1;
     }
 
-    // #pragma omp parallel for reduction(+ : allCount) private(clusterHasElements, auxValueVector) schedule(dynamic, chunkClus) num_threads(numThreadsClus)
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
         rowM[id - 1] = allCount;
-        memset(auxValueVector, 0, nclus * sizeof(int)); // reset auxiliary vector
+
+#pragma omp parallel num_threads(numThreadsClus)
+#pragma omp for nowait schedule(static, chunkClus)
+        for (size_t i = 0; i < nclus; i++)
+            auxValueVector[i] = 0; // reset auxiliary vector
+
         clusterHasElements = 0;
 
-#pragma omp parallel for reduction(+ : auxValueVector[ : nclus]) private(end) schedule(dynamic, chunk) num_threads(numThreads)
+#pragma omp parallel num_threads(numThreads)
+#pragma omp for nowait reduction(+ : auxValueVector[ : nclus]) private(end) schedule(dynamic, chunk)
         // reduction of each element of the auxiliary vector
         for (size_t i = 0; i < n; i++)
         {
@@ -120,9 +119,12 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
                 auxValueVector[c[col[j]] - 1] += val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
             }
         }
+
         if (!clusterHasElements)
             continue;
-#pragma omp parallel for shared(allCount) schedule(dynamic, chunkClus) num_threads(numThreadsClus)
+
+#pragma omp parallel num_threads(numThreadsClus)
+#pragma omp for nowait private(localCount) schedule(dynamic, chunkClus)
         for (size_t i = 0; i < nclus; i++)
         {
             if (auxValueVector[i] == 0)
@@ -136,6 +138,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
             colM[localCount] = i;
         }
     }
+
     colM.resize(allCount);
     valM.resize(allCount);
 }

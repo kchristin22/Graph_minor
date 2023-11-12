@@ -40,6 +40,15 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &v
     }
     else
     {
+        size_t chunk = N / 16;
+        size_t numThreads = 4;
+        if (!chunk)
+        {
+            chunk = N;
+            numThreads = 1;
+        }
+
+        // #pragma omp parallel for reduction(+ : count) schedule(dynamic, chunk) num_threads(numThreads)
         for (size_t index = 0; index < N; index++)
         {
             row[index] = count;
@@ -78,14 +87,14 @@ int main(int argc, char *argv[])
     std::vector<size_t> conf(Nread);
     for (int i = 0; i < Nread; i++)
     {
-        conf[i] = rand() % 100 + 1;
+        conf[i] = rand() % 24 + 1;
         //     printf("%ld ", conf[i]);
     }
     // printf("\n");
 
     // std::vector<int> M(Nread * Nread, 0); // nz x nz max
 
-    struct timeval before, after;
+    // struct timeval before, after;
     // gettimeofday(&before, NULL);
     // seq(M, A, conf);
     // gettimeofday(&after, NULL);
