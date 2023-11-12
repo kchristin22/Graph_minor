@@ -98,9 +98,10 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> 
 
     numClusters(nclus, c);
 
-    size_t end, clusterHasElements, allCount = 0; // store offset to assign to each rowM element
-    std::vector<int> auxValueVector(nclus);       // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                           // resize vector to the number of clusters
+    size_t end, allCount = 0; // store offset to assign to each rowM element
+    bool clusterHasElements = 0;
+    std::vector<int> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    rowM.resize(nclus);                     // resize vector to the number of clusters
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {

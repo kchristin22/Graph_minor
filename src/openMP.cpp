@@ -1,6 +1,5 @@
 #include "openMP.hpp"
 #include "cstdlib"
-#include "cstring"
 
 inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 {
@@ -74,7 +73,8 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
 
     numClusters(nclus, c); // find the number of distinct clusters
 
-    size_t end, clusterHasElements, allCount = 0, localCount;
+    size_t end, allCount = 0, localCount;
+    bool clusterHasElements = 0;
     int auxValueVector[nclus]{0}; // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     rowM.resize(nclus);           // resize vector to the number of clusters
 
