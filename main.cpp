@@ -4,6 +4,7 @@
 #include "openMP.hpp"
 #include "cmath"
 #include "sys/time.h"
+#include "omp.h"
 
 /* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val) */
 void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val,
@@ -22,7 +23,7 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &v
 
     size_t nz = val.size();
 
-    size_t x = 0, rowIndex = 0, count = 0;
+    size_t x = 0, rowIndex = 0, count = 0, localCount;
 
     if (symmetrical) // we can take advantage of the J vector being sorted and use that vector as the row index
     {
@@ -31,8 +32,8 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &v
         {
             if (J[index] != x)
             {
-                row[++rowIndex] = index;
-                x = J[index]; // new row
+                row[++rowIndex] = index; // offset of the next row
+                x = J[index];            // new row
             }
             col[index] = I[index];
             val[index] = V[index];
@@ -41,24 +42,39 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &v
     else
     {
         size_t chunk = N / 16;
-        size_t numThreads = 4;
+        size_t numThreads = chunk / 4;
         if (!chunk)
         {
             chunk = N;
-            numThreads = 1;
         }
 
-        // #pragma omp parallel for reduction(+ : count) schedule(dynamic, chunk) num_threads(numThreads)
+        if (!numThreads)
+        {
+            numThreads = 1;
+        }
+        else if (numThreads > 4)
+        {
+            numThreads = 4;
+        }
+
         for (size_t index = 0; index < N; index++)
         {
             row[index] = count;
+
+#pragma omp parallel num_threads(numThreads)
+#pragma omp for nowait private(localCount) schedule(dynamic, chunk)
             for (size_t j = 0; j < nz; j++)
             {
                 if (I[j] != index)
                     continue;
-                col[count] = J[j];
-                val[count] = V[j];
-                count++;
+
+#pragma omp atomic capture
+                {
+                    localCount = count;
+                    count++;
+                }
+                col[localCount] = J[j];
+                val[localCount] = V[j];
             }
         }
     }

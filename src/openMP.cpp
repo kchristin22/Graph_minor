@@ -7,15 +7,24 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
     size_t n = c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
-    size_t chunk = n / 16; // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes)
-    size_t numThreads = 4;
+    size_t chunk = n / 8; // a chunk of x elements of a size_t array (8*x bytes) will be equal to a cache line (64 bytes)
+    size_t numThreads = (chunk / 4);
     if (!chunk)
     {
         chunk = n;
-        numThreads = 1;
     }
 
-#pragma omp parallel for schedule(dynamic, chunk) num_threads(numThreads)
+    if (!numThreads)
+    {
+        numThreads = 1;
+    }
+    else if (numThreads > 4)
+    {
+        numThreads = 4;
+    }
+
+#pragma omp parallel num_threads(numThreads)
+#pragma omp for nowait schedule(static, chunk)
     for (size_t i = 0; i < n; i++)
     {
         discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
@@ -24,7 +33,8 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 
     nclus = 0;
 
-#pragma omp parallel for reduction(+ : nclus) schedule(dynamic, chunk) num_threads(numThreads)
+#pragma omp parallel num_threads(numThreads)
+#pragma omp for nowait reduction(+ : nclus) schedule(dynamic, chunk)
     for (size_t i = 0; i < n; i++)
     {
         if (discreetClus[i] == 0)
@@ -70,19 +80,36 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<in
 
     size_t chunk = n / 16; // how many cache lines the array fills:
                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    size_t numThreads = 4;
+    size_t numThreads = chunk / 4;
     if (!chunk) // the array of the smallest type (int < size_t) fits in a cache line
     {
         chunk = n;
         numThreads = 1;
     }
 
+    if (!numThreads)
+    {
+        numThreads = 1;
+    }
+    else if (numThreads > 4)
+    {
+        numThreads = 4;
+    }
+
     size_t chunkClus = nclus / 16;
-    size_t numThreadsClus = 4;
+    size_t numThreadsClus = chunkClus / 4;
     if (!chunkClus) // the auxValueVector array fits in a cache line
     {
         chunkClus = nclus;
+    }
+
+    if (!numThreadsClus)
+    {
         numThreadsClus = 1;
+    }
+    else if (numThreadsClus > 4)
+    {
+        numThreadsClus = 4;
     }
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
