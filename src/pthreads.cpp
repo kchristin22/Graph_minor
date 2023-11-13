@@ -41,7 +41,6 @@ void *fnSumAux(void *args)
         end = n;
 
     size_t x, endAux;
-    std::vector<int> auxValueVector(nclus, 0);
     for (size_t i = sumArgs->start; i < end; i++)
     {
         if (sumArgs->id != sumArgs->c[i]) // c[i] : cluster of row i of colCompressed / row
@@ -56,9 +55,12 @@ void *fnSumAux(void *args)
         if (x == endAux) // this row has no non-zero elements
             continue;
 
+        if (!sumArgs->clusterHasElements) // declare that this row has non-zero elements only once
+            sumArgs->clusterHasElements = 1;
+
         for (size_t j = x; j < endAux; j++)
         {
-            auxValueVector[sumArgs->c[sumArgs->col[j]] - 1] += sumArgs->val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
+            sumArgs->auxValueVector[sumArgs->c[sumArgs->col[j]] - 1] += sumArgs->val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
@@ -120,42 +122,50 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     std::vector<int> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     rowM.resize(nclus);                     // resize vector to the number of clusters
 
-    size_t chunk = n / 16;         // how many cache lines the array fills:
-                                   // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    size_t numThreads = chunk / 4; // consider edge case where we need + 1 thread
-    if (!chunk)                    // the array of the smallest type (int < size_t) fits in a cache line
+    size_t chunk = n / 16; // how many cache lines the array fills:
+                           // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+    size_t chunksPerThread = chunk / 4;
+    size_t lastThreadChunk = chunksPerThread;
+    size_t numThreads = 4; // consider edge case where we need + 1 thread
+    if (!chunk)            // the array of the smallest type (int < size_t) fits in a cache line
     {
         chunk = n;
-        numThreads = 1;
     }
 
-    if (!numThreads)
+    if (!chunksPerThread)
     {
+        chunksPerThread = 1;
         numThreads = 1;
     }
-    else if (numThreads > 4)
+    else if (chunk - (chunksPerThread * 4) > 0)
     {
-        numThreads = 4;
+        lastThreadChunk = chunk - (4 * chunksPerThread);
+        numThreads = 5;
     }
 
     size_t chunkClus = nclus / 16;
-    size_t numThreadsClus = chunkClus / 4;
+    size_t chunksClusPerThread = chunkClus / 4;
+    size_t lastThreadClusChunk = chunksClusPerThread;
+    size_t numThreadsClus = 4;
     if (!chunkClus) // the auxValueVector array fits in a cache line
     {
         chunkClus = nclus;
     }
 
-    if (!numThreadsClus)
+    if (!chunksClusPerThread)
     {
+        chunksClusPerThread = 1;
         numThreadsClus = 1;
     }
-    else if (numThreadsClus > 4)
+    else if (chunkClus - (chunksClusPerThread * 4) > 0)
     {
-        numThreadsClus = 4;
+        lastThreadClusChunk = chunkClus - (4 * chunksClusPerThread);
+        numThreadsClus = 5;
     }
 
     pthread_t threads[numThreads], threadsClus[numThreadsClus];
     size_t index = (numThreadsClus * chunkClus);
+    size_t tmpChunkClus = chunkClus, tmpChunk = chunk;
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -165,9 +175,13 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         for (size_t i = 0; i < numThreadsClus; i++)
         {
             index *= i;
-            forThread args = {index, index + chunkClus, auxValueVector};
+            if (numThreadsClus == 5 && i == 4) // magic numbers
+                tmpChunkClus = lastThreadClusChunk;
+            forThread args = {index, index + tmpChunkClus, auxValueVector};
             pthread_create(&threadsClus[i], NULL, fnClearAux, (void *)&args);
         }
+
+        tmpChunkClus = chunkClus;
 
         for (pthread_t i : threadsClus)
         {
@@ -177,9 +191,13 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         for (size_t i = 0; i < numThreads; i++)
         {
             index *= i;
-            sumThread args = {id, index, index + chunk, row, col, val, c, auxValueVector, clusterHasElements};
+            if (numThreads == 5 && i == 4) // magic numbers
+                tmpChunk = lastThreadChunk;
+            sumThread args = {id, index, index + tmpChunk, row, col, val, c, auxValueVector, clusterHasElements};
             pthread_create(&threads[i], NULL, fnSumAux, (void *)&args);
         }
+
+        tmpChunk = chunk;
 
         for (pthread_t i : threads)
         {
@@ -192,9 +210,13 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         for (size_t i = 0; i < numThreadsClus; i++)
         {
             index *= i;
-            assignThread args = {index, index + chunk, auxValueVector, allCount, colM, valM};
+            if (numThreadsClus == 5 && i == 4) // magic numbers
+                tmpChunkClus = lastThreadClusChunk;
+            assignThread args = {index, index + tmpChunkClus, auxValueVector, allCount, colM, valM};
             pthread_create(&threadsClus[i], NULL, fnAssignM, (void *)&args);
         }
+
+        tmpChunkClus = chunkClus;
 
         for (pthread_t i : threadsClus)
         {
