@@ -7,7 +7,7 @@ struct forThread
 {
     size_t start;
     size_t end;
-    std::vector<int> &array;
+    std::vector<std::atomic<int>> &array;
 };
 
 struct sumThread
@@ -19,7 +19,7 @@ struct sumThread
     std::vector<size_t> &col;
     std::vector<int> &val;
     std::vector<size_t> &c;
-    std::vector<int> &auxValueVector;
+    std::vector<std::atomic<int>> &auxValueVector;
     bool &clusterHasElements;
 };
 
@@ -27,7 +27,7 @@ struct assignThread
 {
     size_t start;
     size_t end;
-    std::vector<int> &auxValueVector;
+    std::vector<std::atomic<int>> &auxValueVector;
     std::atomic<size_t> &allCount;
     std::vector<size_t> &colM;
     std::vector<int> &valM;

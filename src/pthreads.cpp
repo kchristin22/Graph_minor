@@ -60,7 +60,7 @@ void *fnSumAux(void *args)
 
         for (size_t j = x; j < endAux; j++)
         {
-            sumArgs->auxValueVector[sumArgs->c[sumArgs->col[j]] - 1] += sumArgs->val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
+            sumArgs->auxValueVector[sumArgs->c[sumArgs->col[j]] - 1].fetch_add(sumArgs->val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
@@ -119,8 +119,8 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     size_t end; // store offset to assign to each rowM element
     std::atomic<size_t> allCount(0);
     bool clusterHasElements = 0;
-    std::vector<int> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                     // resize vector to the number of clusters
+    std::vector<std::atomic<int>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    rowM.resize(nclus);                                  // resize vector to the number of clusters
 
     size_t chunk = n / 16; // how many cache lines the array fills:
                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
