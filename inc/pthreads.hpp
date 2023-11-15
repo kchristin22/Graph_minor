@@ -2,12 +2,15 @@
 #include "vector"
 #include "stdio.h"
 #include "atomic"
+#include "stdint.h"
+
+#define ELEMENTS_PER_CACHE_LINE (64 / sizeof(int))
 
 struct forThread
 {
     size_t start;
     size_t end;
-    std::vector<std::atomic<int>> &array;
+    std::vector<std::atomic<uint32_t>> &array;
 };
 
 struct sumThread
@@ -15,11 +18,11 @@ struct sumThread
     size_t id;
     size_t start;
     size_t end;
-    std::vector<size_t> &row;
-    std::vector<size_t> &col;
-    std::vector<int> &val;
-    std::vector<size_t> &c;
-    std::vector<std::atomic<int>> &auxValueVector;
+    const std::vector<size_t> &row;
+    const std::vector<size_t> &col;
+    const std::vector<uint32_t> &val;
+    const std::vector<size_t> &c;
+    std::vector<std::atomic<uint32_t>> &auxValueVector;
     bool &clusterHasElements;
 };
 
@@ -27,13 +30,13 @@ struct assignThread
 {
     size_t start;
     size_t end;
-    std::vector<std::atomic<int>> &auxValueVector;
-    std::atomic<size_t> &allCount;
+    std::vector<std::atomic<uint32_t>> &auxValueVector;
+    std::atomic<size_t> *allCount;
     std::vector<size_t> &colM;
-    std::vector<int> &valM;
+    std::vector<uint32_t> &valM;
 };
 
-inline void numClusters(size_t &nclus, std::vector<size_t> &c);
+inline void numClusters(size_t &nclus, const std::vector<size_t> &c);
 
 inline void *fnClearAux(void *args);
 
@@ -41,5 +44,5 @@ void *fnSumAux(void *args);
 
 void *fnAssignM(void *args);
 
-void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM,
-              std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val, std::vector<size_t> &c);
+void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
+              const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c);
