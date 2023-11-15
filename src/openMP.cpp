@@ -36,7 +36,7 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 #pragma omp for nowait reduction(+ : nclus) schedule(dynamic, chunk)
     for (size_t i = 0; i < n; i++)
     {
-        if (discreetClus[i] == 0)
+        if (discreetClus[i] == 0) // benefit from predicting
             continue;
         nclus += 1;
     }

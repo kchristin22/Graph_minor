@@ -3,24 +3,26 @@
 #include <iostream>
 #include <memory>
 
-inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
+inline void *fnNumClusters(void *args)
 {
-    size_t n = c.size();
+    nclusThread *nclusArgs = (nclusThread *)args;
+    size_t n = nclusArgs->c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
-    for (size_t i = 0; i < n; i++)
+    for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                    // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+        discreetClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+                                                 // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
-    nclus = 0;
-    for (size_t i = 0; i < n; i++)
+    for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
         if (discreetClus[i] == 0)
             continue;
-        nclus += 1;
+        nclusArgs->nclus.fetch_add(1);
     }
+
+    return nullptr;
 }
 
 inline void *fnClearAux(void *args)
@@ -114,14 +116,6 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     size_t n = c.size();
     size_t nz = val.size();
-    size_t nclus;
-
-    numClusters(nclus, c);
-
-    std::atomic<size_t> allCount(0);
-    bool clusterHasElements = 0;
-    std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                                       // resize vector to the number of clusters
 
     size_t cacheLines = n / 16; // how many cache lines the array fills:
                                 // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
@@ -139,7 +133,6 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE / numThreads;
     size_t lastThreadChunk = chunk;
-    printf("chunk: %ld\n", chunk);
 
     if (n > (cacheLines * ELEMENTS_PER_CACHE_LINE)) // n does not fill in an integer number of cachelines
     {
@@ -148,7 +141,34 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     else if (n <= (cacheLines * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
         lastThreadChunk = n;
 
-    printf("last chunk: %ld\n", lastThreadChunk);
+    std::atomic<size_t> nclus{0}; // if we used different variables for each thread and then calculate their sum,
+                                  // since this vector of variables would fit in a single cache line,
+                                  // the whole vector would be updated each time an element is changed, so it would be as or more costly
+
+    std::vector<nclusThread> nclusArgs;
+    nclusArgs.reserve(numThreads);
+
+    pthread_t nclusThreads[numThreads];
+
+    for (size_t i = 0; i < numThreads; i++)
+    {
+        size_t start = i * chunk;
+        size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
+        nclusArgs.push_back({start, end, c, nclus});
+        pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
+    }
+
+    for (pthread_t i : nclusThreads)
+    {
+        pthread_join(i, NULL);
+    }
+
+    printf("Number of clusters: %ld\n", nclus.load());
+
+    std::atomic<size_t> allCount(0);
+    bool clusterHasElements = 0;
+    std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    rowM.resize(nclus);                                       // resize vector to the number of clusters
 
     size_t cacheLinesClus = nclus / 16;
     size_t numThreadsClus = 4;
@@ -172,25 +192,9 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     else if (nclus <= (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
         lastThreadChunkClus = nclus;
 
-    // if (!numThreadsClus)
-    // {
-    //     numThreadsClus = 1;
-    // }
-    // else if (numThreadsClus > 4)
-    // {
-    //     numThreadsClus = 4;
-    // }
+    // std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
 
-    // size_t lastThreadClusChunk = chunksClusPerThread;
-
-    // if (chunkClus > (chunksClusPerThread * 4))
-    // {
-    //     lastThreadClusChunk = chunkClus - (3 * chunksClusPerThread);
-    // }
-
-    std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
-
-    pthread_t threads[numThreads], threadsClus[numThreadsClus], threadsClus1[numThreadsClus];
+    pthread_t threads[numThreads], threadsClus[numThreadsClus], threadsAssign[numThreadsClus];
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -240,10 +244,10 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
             size_t start = i * chunk;
             size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
             assignArgs.push_back({start, end, auxValueVector, &allCount, colM, valM});
-            pthread_create(&threadsClus1[i], NULL, fnAssignM, (void *)&assignArgs[i]);
+            pthread_create(&threadsAssign[i], NULL, fnAssignM, (void *)&assignArgs[i]);
         }
 
-        for (pthread_t i : threadsClus1)
+        for (pthread_t i : threadsAssign)
         {
             pthread_join(i, NULL);
         }
