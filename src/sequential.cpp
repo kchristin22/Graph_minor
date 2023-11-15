@@ -67,8 +67,8 @@ void seq(std::vector<int> &M, std::vector<int> &A, std::vector<size_t> &c)
     }
 };
 
-void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM,
-         std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val, std::vector<size_t> &c)
+void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
+         std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
 {
     if (row.size() != c.size())
     {
@@ -145,7 +145,8 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> 
     valM.resize(allCount);
 }
 
-void seqDenseCSR(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<int> &valM, std::vector<size_t> &row, std::vector<size_t> &col, std::vector<int> &val, std::vector<size_t> &c)
+void seqDenseCSR(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
+                 std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
 {
     if (row.size() != c.size())
     {
