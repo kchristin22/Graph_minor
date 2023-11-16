@@ -18,7 +18,7 @@ struct nclusThread
     size_t start;
     size_t end;
     const std::vector<size_t> &c;
-    std::atomic<size_t> &nclus;
+    size_t &nclus;
 };
 
 struct Task
@@ -44,7 +44,7 @@ struct forThread
 {
     const size_t start;
     const size_t end;
-    std::vector<std::atomic<uint32_t>> &array;
+    std::vector<uint32_t> &array;
 };
 
 struct sumThread
@@ -56,7 +56,8 @@ struct sumThread
     const std::vector<size_t> &col;
     const std::vector<uint32_t> &val;
     const std::vector<size_t> &c;
-    std::vector<std::atomic<uint32_t>> &auxValueVector;
+    std::vector<uint32_t> &auxValueVector;
+    size_t auxValueIndex;
     bool &clusterHasElements;
 };
 
@@ -64,15 +65,15 @@ struct assignThread
 {
     const size_t start;
     const size_t end;
-    std::vector<std::atomic<uint32_t>> &auxValueVector;
+    std::vector<uint32_t> &auxValueVector;
     std::atomic<size_t> &allCount;
     std::vector<size_t> &colM;
     std::vector<uint32_t> &valM;
 };
 
-inline void *fnNumClusters(void *args);
+void *fnNumClusters(void *args);
 
-inline void *fnClearAux(void *args);
+void *fnClearAux(void *args);
 
 void *fnSumAux(void *args);
 

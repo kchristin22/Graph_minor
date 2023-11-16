@@ -73,73 +73,6 @@ inline void *fnNumClusters(void *args)
     return nullptr;
 }
 
-inline void *fnClearAux(void *args)
-{
-    forThread *forArgs = (forThread *)args;
-    for (size_t i = forArgs->start; i < forArgs->end; i++)
-        forArgs->array[i] = 0; // reset auxiliary vector
-
-    return nullptr;
-}
-
-void *fnSumAux(void *args)
-{
-    sumThread *sumArgs = (sumThread *)args;
-    size_t n = sumArgs->row.size();
-
-    size_t end = sumArgs->r.end;
-    if (end > n)
-        end = n;
-
-    size_t x, endAux;
-    for (size_t i = sumArgs->r.start; i < end; i++)
-    {
-        if (sumArgs->id != sumArgs->c[i]) // c[i] : cluster of row i of colCompressed / row
-            continue;
-
-        if (i == (n - 1)) // last row contains the last range of non-zero elements
-            endAux = sumArgs->col.size();
-        else
-            endAux = sumArgs->row[i + 1];
-
-        x = sumArgs->row[i];
-        if (x == endAux) // this row has no non-zero elements
-            continue;
-
-        if (!sumArgs->clusterHasElements) // declare that this row has non-zero elements only once
-            sumArgs->clusterHasElements = 1;
-
-        for (size_t j = x; j < endAux; j++)
-        {
-            sumArgs->auxValueVector[sumArgs->c[sumArgs->col[j]] - 1].fetch_add(sumArgs->val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
-        }
-    }
-
-    return nullptr;
-}
-
-void *fnAssignM(void *args)
-{
-
-    size_t localCount;
-    assignThread *assignArgs = (assignThread *)args;
-    for (size_t i = assignArgs->start; i < assignArgs->end; i++)
-    {
-        if (assignArgs->auxValueVector[i] == 0)
-            continue;
-
-        localCount = assignArgs->allCount.fetch_add(1); // returns the previous value
-
-        assignArgs->valM[localCount] = assignArgs->auxValueVector[i];
-        assignArgs->colM[localCount] = i;
-    }
-
-    for (size_t i = assignArgs->start; i < assignArgs->end; i++)
-        assignArgs->auxValueVector[i] = 0; // reset auxiliary vector
-
-    return nullptr;
-}
-
 void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
               const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c)
 {
@@ -216,7 +149,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     {
         size_t start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-        nclusArgs.push_back({0, 0, c, nclus});
+        nclusArgs.push_back({0, 0, c, nclus}); // nclusArgs used to include an atomic size_t for the number of clusters
         tasks.push_back({&queue, &queueMutex, &queueNotEmpty, start, end, nclusArgs[i], fnNumClusters});
         pthread_create(&nclusThreads[i], NULL, producer, (void *)&tasks[i]);
     }
