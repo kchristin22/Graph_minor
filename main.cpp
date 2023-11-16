@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     std::vector<size_t> conf(Nread);
     for (int i = 0; i < Nread; i++)
     {
-        conf[i] = rand() % 2 + 1;
+        conf[i] = rand() % 1 + 1;
         // printf("%ld ", conf[i]);
     }
     // printf("\n");
@@ -222,22 +222,22 @@ int main(int argc, char *argv[])
     gettimeofday(&end, NULL);
     printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%ld ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%ld ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
-    printf("\n");
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%d ", valM[i]);
+    // }
+    // printf("\n");
 
     return 0;
 }

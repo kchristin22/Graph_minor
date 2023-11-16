@@ -2,23 +2,72 @@
 #include "cstdlib"
 #include "iostream"
 
-inline void *fnNumClusters(void *args)
-{
-    nclusThread *nclusArgs = (nclusThread *)args;
-    size_t n = nclusArgs->c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+bool finishedTasks = 0;
 
-    for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
+void *producer(void *args)
+{
+    Task task = *(Task *)args;
+
+    // add check of max queue size
+
+    for (size_t i = task.chunkStart; i < task.chunkEnd; i += ELEMENTS_PER_CACHE_LINE) // each producer thread takes a chunk start and end and puts a cacheline in
     {
-        discreetClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                                 // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+        task.nclusArgs.start = i;
+        task.nclusArgs.end = i + ELEMENTS_PER_CACHE_LINE;
+        pthread_mutex_lock(task.queueMutex);
+        task.queue->push(task);
+        pthread_mutex_unlock(task.queueMutex);
+        pthread_cond_signal(task.queueNotEmpty);
     }
 
-    for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
+    return nullptr;
+}
+
+void *consumer(void *args)
+{
+    Task *task = (Task *)args;
+
+    while (1)
+    {
+
+        pthread_mutex_lock(task->queueMutex);
+        if (task->queue->empty())
+        {
+            if (finishedTasks)
+            {
+                pthread_mutex_unlock(task->queueMutex);
+                return nullptr;
+            }
+            pthread_cond_wait(task->queueNotEmpty, task->queueMutex);
+        }
+
+        Task tmpTask = task->queue->front();
+        task->queue->pop();
+        pthread_mutex_unlock(task->queueMutex);
+
+        tmpTask.fn(&tmpTask.nclusArgs);
+    }
+
+    return nullptr;
+}
+
+inline void *fnNumClusters(void *args)
+{
+    nclusThread nclusArgs = *(nclusThread *)args;
+    size_t n = nclusArgs.c.size();
+    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+
+    for (size_t i = nclusArgs.start; i < nclusArgs.end; i++)
+    {
+        discreetClus[(nclusArgs.c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+                                                // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+    }
+
+    for (size_t i = nclusArgs.start; i < nclusArgs.end; i++)
     {
         if (discreetClus[i] == 0)
             continue;
-        nclusArgs->nclus.fetch_add(1);
+        nclusArgs.nclus.fetch_add(1);
     }
 
     return nullptr;
@@ -38,12 +87,12 @@ void *fnSumAux(void *args)
     sumThread *sumArgs = (sumThread *)args;
     size_t n = sumArgs->row.size();
 
-    size_t end = sumArgs->end;
+    size_t end = sumArgs->r.end;
     if (end > n)
         end = n;
 
     size_t x, endAux;
-    for (size_t i = sumArgs->start; i < end; i++)
+    for (size_t i = sumArgs->r.start; i < end; i++)
     {
         if (sumArgs->id != sumArgs->c[i]) // c[i] : cluster of row i of colCompressed / row
             continue;
@@ -150,18 +199,44 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     std::vector<nclusThread> nclusArgs;
     nclusArgs.reserve(numThreads);
 
-    range r;
+    // task queue
 
-    pthread_t nclusThreads[numThreads];
+    printf("Num threads: %ld\n", numThreads);
+
+    std::queue<Task> queue;
+    pthread_mutex_t queueMutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t queueNotEmpty = PTHREAD_COND_INITIALIZER;
+
+    std::vector<Task> tasks;
+    tasks.reserve(numThreads);
+
+    pthread_t nclusThreads[numThreads], cons[numThreads];
 
     for (size_t i = 0; i < numThreads; i++)
     {
         size_t start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-        r.start = start;
-        r.end = end;
-        nclusArgs.push_back({start, end, c, nclus});
-        pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
+        nclusArgs.push_back({0, 0, c, nclus});
+        tasks.push_back({&queue, &queueMutex, &queueNotEmpty, start, end, nclusArgs[i], fnNumClusters});
+        pthread_create(&nclusThreads[i], NULL, producer, (void *)&tasks[i]);
+    }
+
+    consThread consTasks[numThreads] = {{&queue,
+                                         &queueMutex,
+                                         &queueNotEmpty},
+                                        {&queue,
+                                         &queueMutex,
+                                         &queueNotEmpty},
+                                        {&queue,
+                                         &queueMutex,
+                                         &queueNotEmpty},
+                                        {&queue,
+                                         &queueMutex,
+                                         &queueNotEmpty}};
+
+    for (size_t i = 0; i < numThreads; i++)
+    {
+        pthread_create(&cons[i], NULL, consumer, (void *)&consTasks[i]);
     }
 
     for (pthread_t i : nclusThreads)
@@ -169,99 +244,16 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         pthread_join(i, NULL);
     }
 
+    finishedTasks = 1;
+
+    for (pthread_t i : cons)
+    {
+        pthread_cond_broadcast(&queueNotEmpty); // broadcasting signals is used to wake any consumer threads that are waiting
+        pthread_join(i, NULL);
+    }
+
     printf("Number of clusters: %ld\n", nclus.load());
+    printf("I'm in the dynamic\n");
 
-    std::atomic<size_t> allCount(0);
-    bool clusterHasElements = 0;
-    std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                                       // resize vector to the number of clusters
-
-    size_t cacheLinesClus = nclus / 16;
-    size_t numThreadsClus = 4;
-    if (!cacheLinesClus) // the auxValueVector array fits in a cache line
-    {
-        numThreadsClus = 1;
-        cacheLinesClus = 1;
-    }
-    else if (cacheLinesClus <= numThreadsClus)
-    {
-        numThreadsClus = cacheLinesClus;
-    }
-
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE / numThreadsClus;
-    size_t lastThreadChunkClus = chunkClus;
-
-    if (nclus > (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // n does not fill in an integer number of cachelines
-    {
-        lastThreadChunkClus = chunkClus + (nclus - cacheLinesClus * ELEMENTS_PER_CACHE_LINE); // the last thread gets its chunk + the remaining items
-    }
-    else if (nclus <= (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
-        lastThreadChunkClus = nclus;
-
-    std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
-
-    pthread_t threads[numThreads], threadsClus[numThreadsClus], threadsAssign[numThreadsClus];
-
-    std::vector<sumThread> sumArgs;
-    sumArgs.reserve(numThreads);
-
-    std::vector<assignThread> assignArgs;
-    assignArgs.reserve(numThreadsClus);
-
-    for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
-    {
-        rowM[id - 1] = allCount;
-        clusterHasElements = 0;
-
-        // std::vector<forThread> forArgs;
-        // forArgs.reserve(numThreadsClus);
-
-        // for (size_t i = 0; i < numThreadsClus; i++)
-        // {
-        //     size_t start = i * chunkClus;
-        //     size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
-        //     forArgs.push_back({start, end, auxValueVector});
-        //     pthread_create(&threadsClus[i], NULL, fnClearAux, (void *)&forArgs[i]);
-        // }
-
-        // for (pthread_t i : threadsClus)
-        // {
-        //     pthread_join(i, NULL);
-        // }
-
-        for (size_t i = 0; i < numThreads; i++)
-        {
-            size_t start = i * chunk;
-            size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-            sumArgs.push_back({id, start, end, row, col, val, c, auxValueVector, clusterHasElements});
-            pthread_create(&threads[i], NULL, fnSumAux, (void *)&sumArgs[i]);
-        }
-
-        for (pthread_t i : threads)
-        {
-            pthread_join(i, NULL);
-        }
-
-        if (!clusterHasElements)
-            continue;
-
-        for (size_t i = 0; i < numThreadsClus; i++)
-        {
-            size_t start = i * chunk;
-            size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
-            assignArgs.push_back({start, end, auxValueVector, allCount, colM, valM});
-            pthread_create(&threadsAssign[i], NULL, fnAssignM, (void *)&assignArgs[i]);
-        }
-
-        for (pthread_t i : threadsAssign)
-        {
-            pthread_join(i, NULL);
-        }
-
-        sumArgs.clear();
-        assignArgs.clear();
-    }
-
-    colM.resize(allCount);
-    valM.resize(allCount);
+    return;
 }

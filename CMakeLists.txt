@@ -9,7 +9,8 @@ include_directories(lib/inc)
 
 add_library(library lib/src/mmio.cpp)
 
-file(GLOB SOURCES src/*.cpp)
+file(GLOB SOURCES "src/*.cpp")
+list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pthreadsDynSched.cpp")
 
 add_executable(output main.cpp ${SOURCES})
 target_include_directories(output PUBLIC inc)
