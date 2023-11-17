@@ -247,6 +247,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         clusterHasElements = 0;
 
         auxValueVector.assign(nclus * numThreads, 0);
+        sumArgs.clear();
 
         // std::vector<forThread> forArgs;
         // forArgs.reserve(numThreads);
@@ -289,7 +290,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         {
             for (size_t j = 0; j < nclus * numThreads; j += nclus)
             {
-                valMVector[i] += auxValueVector[i * nclus + j];
+                valMVector[i] += auxValueVector[i + j];
             }
         }
 
@@ -311,7 +312,6 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         // gettimeofday(&end, NULL);
         // printf("Time elapsed for assigning: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-        sumArgs.clear();
         assignArgs.clear();
     }
 

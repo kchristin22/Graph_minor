@@ -14,7 +14,7 @@ file(GLOB SOURCES "src/*.cpp")
 list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pthreadsDynSched.cpp")
 
 add_executable(output main.cpp ${SOURCES})
-target_include_directories(output PUBLIC inc EXCLUDE "${CMAKE_CURRENT_SOURCE_DIR}/inc/openCilk.hpp")
+target_include_directories(output PUBLIC inc)
 target_link_libraries(output PRIVATE library)
 
 
