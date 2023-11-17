@@ -44,7 +44,7 @@ struct forThread
 {
     const size_t start;
     const size_t end;
-    std::vector<uint32_t> &array;
+    std::vector<std::atomic<uint32_t>> &array;
 };
 
 struct sumThread
@@ -57,7 +57,7 @@ struct sumThread
     const std::vector<uint32_t> &val;
     const std::vector<size_t> &c;
     std::vector<uint32_t> &auxValueVector;
-    size_t auxValueIndex;
+size_t auxValueIndex;
     bool &clusterHasElements;
 };
 

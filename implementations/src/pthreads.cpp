@@ -120,9 +120,9 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     size_t n = c.size();
 
-    size_t cacheLines = n / 16; // how many cache lines the array fills:
-                                // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    size_t numThreads = 4;      // consider edge case where we need + 1 thread
+    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE; // how many cache lines the array fills:
+                                                     // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+    size_t numThreads = 4;                           // consider edge case where we need + 1 thread
 
     if (!cacheLines)
     {
@@ -155,9 +155,6 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     pthread_t nclusThreads[numThreads];
 
-    // struct timeval startNclus, endNclus;
-    // gettimeofday(&startNclus, NULL);
-
     for (size_t i = 0; i < numThreads; i++)
     {
         size_t start = i * chunk;
@@ -165,29 +162,22 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         nclusArgs.push_back({start, end, c, nclusVector[i]});
         pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
     }
-    // gettimeofday(&endNclus, NULL);
-    // printf("Time elapsed for creating: %ld\n", ((endNclus.tv_sec * 1000000 + endNclus.tv_usec) - (startNclus.tv_sec * 1000000 + startNclus.tv_usec)));
 
     for (pthread_t i : nclusThreads)
     {
         pthread_join(i, NULL);
     }
-    // gettimeofday(&endNclus, NULL);
 
     for (size_t i = 0; i < numThreads; i++)
     {
         nclus += nclusVector[i];
     }
 
-    // printf("Number of clusters: %ld\n", nclus);
-    // printf("Time elapsed for counting clusters: %ld\n", ((endNclus.tv_sec * 1000000 + endNclus.tv_usec) - (startNclus.tv_sec * 1000000 + startNclus.tv_usec)));
-
     std::atomic<size_t> allCount(0);
     bool clusterHasElements = 0;
-    // std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     rowM.resize(nclus); // resize vector to the number of clusters
 
-    size_t cacheLinesClus = nclus / 16;
+    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE;
     size_t numThreadsClus = 4;
     if (!cacheLinesClus) // the auxValueVector array fits in a cache line
     {
@@ -198,7 +188,6 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     {
         numThreadsClus = cacheLinesClus;
     }
-    // numThreadsClus = 4;
 
     size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE / numThreadsClus;
     size_t lastThreadChunkClus = chunkClus;
@@ -212,12 +201,11 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
 
-    pthread_t threads[numThreads], threadsClus[numThreadsClus], threadsAssign[numThreadsClus];
+    pthread_t threadsSum[numThreads], threadsAssign[numThreadsClus];
 
     pthread_attr_t attr;
     cpu_set_t cpu_set;
 
-    // Initialize thread attributes
     pthread_attr_init(&attr);
 
     // Set CPU affinity to use only CPU 0
@@ -238,8 +226,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     std::vector<uint32_t> valMVector(nclus, 0);
     std::vector<uint32_t> auxValueVector(nclus * numThreads, 0);
-
-    pthread_t clear[numThreads];
+    // std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -249,33 +236,15 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         auxValueVector.assign(nclus * numThreads, 0);
         sumArgs.clear();
 
-        // std::vector<forThread> forArgs;
-        // forArgs.reserve(numThreads);
-
-        // for (size_t i = 0; i < numThreads; i++)
-        // {
-        //     size_t start = i * nclus;
-        //     size_t end = start + nclus;
-        //     forArgs.push_back({start, end, auxValueVector});
-        //     pthread_create(&clear[i], NULL, fnClearAux, (void *)&forArgs[i]);
-        // }
-
-        // for (pthread_t i : clear)
-        // {
-        //     pthread_join(i, NULL);
-        // }
-        // struct timeval start, end;
-        // gettimeofday(&start, NULL);
-
         for (size_t i = 0; i < numThreads; i++)
         {
             size_t start = i * chunk;
             size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
             sumArgs.push_back({id, start, end, row, col, val, c, auxValueVector, i * nclus, clusterHasElements});
-            pthread_create(&threads[i], NULL, fnSumAux, (void *)&sumArgs[i]);
+            pthread_create(&threadsSum[i], NULL, fnSumAux, (void *)&sumArgs[i]);
         }
 
-        for (pthread_t i : threads)
+        for (pthread_t i : threadsSum)
         {
             pthread_join(i, NULL);
         }
@@ -283,18 +252,10 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         if (!clusterHasElements)
             continue;
 
-        // gettimeofday(&end, NULL);
-        // printf("Time elapsed for summing: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
-
-        for (size_t i = 0; i < nclus; i++)
+        for (size_t i = 0; i < nclus * numThreads; i++)
         {
-            for (size_t j = 0; j < nclus * numThreads; j += nclus)
-            {
-                valMVector[i] += auxValueVector[i + j];
-            }
+            valMVector[(i % nclus)] += auxValueVector[i];
         }
-
-        // gettimeofday(&start, NULL);
 
         for (size_t i = 0; i < numThreadsClus; i++)
         {
@@ -309,10 +270,8 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
             pthread_join(i, NULL);
         }
 
-        // gettimeofday(&end, NULL);
-        // printf("Time elapsed for assigning: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
-
         assignArgs.clear();
+        valMVector.assign(nclus, 0);
     }
 
     colM.resize(allCount);
