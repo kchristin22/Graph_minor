@@ -1,7 +1,9 @@
-#include "inc/openCilk.hpp"
+#include "openCilk.hpp"
 
-int main()
+void printCilk()
 {
-    printCilk();
-    return 0;
+    cilk_for(int i = 0; i < 10; i++)
+    {
+        printf("%d\n", i);
+    }
 }

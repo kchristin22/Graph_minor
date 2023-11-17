@@ -85,7 +85,7 @@ void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t
     int index;
     for (index = 0; index < (nz); index++)
     {
-        fscanf(f, "%d %d %d\n", &I[index], &J[index], &V[index]);
+        fscanf(f, "%ld %ld %d\n", &I[index], &J[index], &V[index]);
         I[index]--;
         J[index]--;
     }
