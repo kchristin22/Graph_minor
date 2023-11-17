@@ -2,7 +2,13 @@
   "configurations": [
     {
       "name": "Linux",
-      "includePath": ["${default}", "${workspaceFolder}/**", "/usr/include/**"],
+      "includePath": [
+        "${default}",
+        "${workspaceFolder}/**",
+        "/usr/include/**",
+        "/opt/opencilk/include/**",
+        "/opt/opencilk/lib/**"
+      ],
       "defines": [],
       "cStandard": "c11",
       "cppStandard": "c++17",

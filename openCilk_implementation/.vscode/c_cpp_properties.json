@@ -1,0 +1,20 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "includePath": [
+        "${default}",
+        "${workspaceFolder}/**",
+        "/usr/include/**",
+        "/opt/opencilk/include/**",
+        "/opt/opencilk/lib/**"
+      ],
+      "defines": [],
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "linux-gcc-x64",
+      "compilerPath": "/usr/bin/g++"
+    }
+  ],
+  "version": 4
+}
