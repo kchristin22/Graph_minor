@@ -100,10 +100,10 @@ int main(int argc, char *argv[])
 
     // readMM(A, filename, Nread, nzread);
 
-    std::vector<size_t> conf(Nread);
-    for (int i = 0; i < Nread; i++)
+    std::vector<size_t> conf(Nread, 1);
+    for (int i = 0; i < 8000; i++)
     {
-        conf[i] = rand() % 4 + 1;
+        conf[i] = i + 1;
         // printf("%ld ", conf[i]);
     }
     // printf("\n");

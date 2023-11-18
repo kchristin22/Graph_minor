@@ -2,6 +2,7 @@
 #include "cstdlib"
 #include "iostream"
 #include "sys/time.h"
+#include <chrono>
 
 void *fnNumClusters(void *args)
 {
@@ -64,11 +65,30 @@ void *fnSumAux(void *args)
 
         for (size_t j = x; j < endAux; j++)
         {
-            sumArgs->auxValueVector[index + sumArgs->c[sumArgs->col[j]] - 1] += (sumArgs->val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
+                        sumArgs->auxValueVector[index + sumArgs->c[sumArgs->col[j]] - 1] += (sumArgs->val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
     return nullptr;
+}
+
+void *fnReduction(void *args)
+{ // numThreadsClus
+    reductionThread *redArgs = (reductionThread *)args;
+    size_t nclus = redArgs->nclus;
+    size_t size = redArgs->inputArray.size();
+
+    for (size_t id = redArgs->id_start; id < redArgs->id_end; id++)
+    {
+        for (size_t i = (id - 1); i < size; i += nclus)
+        {
+            redArgs->outputArray[id - 1] += redArgs->inputArray[i];
+        }
+    }
+
+    return nullptr;
+
+    // else per nclus*numThreads chunk: redArgs->outputArray[id] += redArgs->inputArray[i];
 }
 
 void *fnAssignM(void *args)
@@ -86,9 +106,7 @@ void *fnAssignM(void *args)
         assignArgs->valM[localCount] = assignArgs->auxValueVector[i];
         assignArgs->colM[localCount] = i;
     }
-
-    for (size_t i = assignArgs->start; i < assignArgs->end; i++)
-        assignArgs->auxValueVector[i] = 0; // reset auxiliary vector
+    // printf("localCount: %ld\n", localCount);
 
     return nullptr;
 }
@@ -199,9 +217,9 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     else if (nclus <= (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
         lastThreadChunkClus = nclus;
 
-    std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
+    // std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
 
-    pthread_t threadsSum[numThreads], threadsAssign[numThreadsClus];
+    pthread_t threadsSum[numThreads], threadsAssign[numThreadsClus], reductionThreads[numThreadsClus];
 
     pthread_attr_t attr;
     cpu_set_t cpu_set;
@@ -218,15 +236,18 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         exit(EXIT_FAILURE);
     }
 
+    std::vector<uint32_t> valMVector(nclus, 0);
+    std::vector<uint32_t> auxValueVector(nclus * numThreads, 0);
+    // std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+
+    std::vector<reductionThread> redArgs;
+    redArgs.reserve(numThreadsClus);
+
     std::vector<sumThread> sumArgs;
     sumArgs.reserve(numThreads);
 
     std::vector<assignThread> assignArgs;
     assignArgs.reserve(numThreadsClus);
-
-    std::vector<uint32_t> valMVector(nclus, 0);
-    std::vector<uint32_t> auxValueVector(nclus * numThreads, 0);
-    // std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -252,14 +273,28 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         if (!clusterHasElements)
             continue;
 
-        for (size_t i = 0; i < nclus * numThreads; i++)
+        for (size_t i = 0; i < numThreadsClus; i++)
         {
-            valMVector[(i % nclus)] += auxValueVector[i];
+            size_t id_start = i * chunkClus + 1;
+            size_t id_end = (i == (numThreadsClus - 1)) ? (id_start + lastThreadChunkClus) : (id_start + chunkClus);
+            // printf("id_start, id_end: %ld, %ld\n", id_start, id_end);
+            redArgs.push_back({id_start, id_end, nclus, auxValueVector, valMVector});
+            pthread_create(&reductionThreads[i], NULL, fnReduction, (void *)&redArgs[i]);
         }
+
+        for (pthread_t i : reductionThreads)
+        {
+            pthread_join(i, NULL);
+        }
+
+        // for (size_t i = 0; i < nclus * numThreads; i++)
+        // {
+        //     valMVector[(i % nclus)] += auxValueVector[i]; // reduction
+        // }
 
         for (size_t i = 0; i < numThreadsClus; i++)
         {
-            size_t start = i * chunk;
+            size_t start = i * chunkClus;
             size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
             assignArgs.push_back({start, end, valMVector, allCount, colM, valM});
             pthread_create(&threadsAssign[i], NULL, fnAssignM, (void *)&assignArgs[i]);
@@ -271,9 +306,10 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         }
 
         assignArgs.clear();
+        redArgs.clear();
         valMVector.assign(nclus, 0);
     }
 
-    colM.resize(allCount);
-    valM.resize(allCount);
+    colM.resize(allCount.load());
+    valM.resize(allCount.load());
 }
