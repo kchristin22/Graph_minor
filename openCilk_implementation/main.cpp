@@ -1,7 +1,7 @@
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "sys/time.h"
-#include "openCilk.hpp"
+#include "GMopenCilk.hpp"
 
 int main(int argc, char *argv[])
 {
