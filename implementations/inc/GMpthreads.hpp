@@ -85,4 +85,4 @@ void *fnSumAux(void *args);
 
 void *fnAssignM(void *args);
 
-void pthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);
+void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);

@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     rowM.resize(Nread + 1, 0);
 
     gettimeofday(&start, NULL);
-    openMP(csrM, csr, conf);
+    GMopenMP(csrM, csr, conf);
     gettimeofday(&end, NULL);
     printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
     rowM.resize(Nread + 1, 0);
 
     gettimeofday(&start, NULL);
-    pthreads(csrM, csr, conf);
+    GMpthreads(csrM, csr, conf);
     gettimeofday(&end, NULL);
     printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
