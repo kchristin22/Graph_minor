@@ -1,3 +1,5 @@
+#pragma once
+
 #include "mmio.h"
 #include "stdlib.h"
 #include "vector"
