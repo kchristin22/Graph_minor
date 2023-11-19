@@ -4,6 +4,7 @@
 #include "atomic"
 #include "stdint.h"
 #include "queue"
+#include "coo_to_csr.hpp"
 
 #define ELEMENTS_PER_CACHE_LINE (64 / sizeof(int))
 
@@ -61,9 +62,7 @@ struct sumThread
     const size_t id;
     const size_t start;
     const size_t end;
-    const std::vector<size_t> &row;
-    const std::vector<size_t> &col;
-    const std::vector<uint32_t> &val;
+    const CSR &csr;
     const std::vector<size_t> &c;
     std::vector<uint32_t> &auxValueVector;
     size_t auxValueIndex;
@@ -76,8 +75,7 @@ struct assignThread
     const size_t end;
     std::vector<uint32_t> &auxValueVector;
     std::atomic<size_t> &allCount;
-    std::vector<size_t> &colM;
-    std::vector<uint32_t> &valM;
+    CSR &csrM;
 };
 
 void *fnNumClusters(void *args);
@@ -88,5 +86,4 @@ void *fnSumAux(void *args);
 
 void *fnAssignM(void *args);
 
-void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
-              const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c);
+void pthreads(CSR &csrM, CSR &csr, std::vector<size_t> &c);

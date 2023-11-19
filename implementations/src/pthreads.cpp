@@ -38,7 +38,7 @@ void *fnClearAux(void *args)
 void *fnSumAux(void *args)
 {
     sumThread *sumArgs = (sumThread *)args;
-    size_t n = sumArgs->row.size();
+    size_t n = sumArgs->csr.row.size();
     size_t index = sumArgs->auxValueIndex;
 
     size_t end = sumArgs->end;
@@ -51,9 +51,9 @@ void *fnSumAux(void *args)
         if (sumArgs->id != sumArgs->c[i]) // c[i] : cluster of row i of colCompressed / row
             continue;
 
-        endAux = sumArgs->row[i + 1];
+        endAux = sumArgs->csr.row[i + 1];
 
-        x = sumArgs->row[i];
+        x = sumArgs->csr.row[i];
         if (x == endAux) // this row has no non-zero elements
             continue;
 
@@ -62,7 +62,7 @@ void *fnSumAux(void *args)
 
         for (size_t j = x; j < endAux; j++)
         {
-            sumArgs->auxValueVector[index + sumArgs->c[sumArgs->col[j]] - 1] += (sumArgs->val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
+            sumArgs->auxValueVector[index + sumArgs->c[sumArgs->csr.col[j]] - 1] += (sumArgs->csr.val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
         }
     }
 
@@ -100,33 +100,32 @@ void *fnAssignM(void *args)
 
         localCount = assignArgs->allCount.fetch_add(1); // returns the previous value
 
-        assignArgs->valM[localCount] = assignArgs->auxValueVector[i];
-        assignArgs->colM[localCount] = i;
+        assignArgs->csrM.val[localCount] = assignArgs->auxValueVector[i];
+        assignArgs->csrM.col[localCount] = i;
     }
     // printf("localCount: %ld\n", localCount);
 
     return nullptr;
 }
 
-void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
-              const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c)
+void pthreads(CSR &csrM, CSR &csr, std::vector<size_t> &c)
 {
-    if (row.size() != (c.size() + 1))
+    if (csr.row.size() != (c.size() + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (col.size() != val.size())
+    else if (csr.col.size() != csr.val.size())
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == (col.size() + 1))
+    else if (csr.row.size() == (csr.col.size() + 1))
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((rowM.size() != row.size()) || (colM.size() != col.size()) || (valM.size() != val.size()))
+    else if ((csrM.row.size() != csr.row.size()) || (csrM.col.size() != csr.col.size()) || (csrM.val.size() != csr.val.size()))
     // if the input graph is its the minor, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
@@ -190,7 +189,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     std::atomic<size_t> allCount(0);
     bool clusterHasElements = 0;
-    rowM.resize(nclus + 1); // resize vector to the number of clusters
+    csrM.row.resize(nclus + 1); // resize vector to the number of clusters
 
     size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE;
     size_t numThreadsClus = 4;
@@ -248,7 +247,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
-        rowM[id - 1] = allCount.load();
+        csrM.row[id - 1] = allCount.load();
         clusterHasElements = 0;
 
         auxValueVector.assign(nclus * numThreads, 0);
@@ -258,11 +257,11 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         {
             size_t start = i * chunk;
             size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-            sumArgs.push_back({id, start, end, row, col, val, c, auxValueVector, i * nclus, clusterHasElements});
+            sumArgs.push_back({id, start, end, csr, c, auxValueVector, i * nclus, clusterHasElements});
             pthread_create(&threadsSum[i], NULL, fnSumAux, (void *)&sumArgs[i]);
         }
 
-        for (pthread_t i : threadsSum)
+        for (pthread_t &i : threadsSum)
         {
             pthread_join(i, NULL);
         }
@@ -278,7 +277,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
             pthread_create(&reductionThreads[i], NULL, fnReduction, (void *)&redArgs[i]);
         }
 
-        for (pthread_t i : reductionThreads)
+        for (pthread_t &i : reductionThreads)
         {
             pthread_join(i, NULL);
         }
@@ -292,11 +291,11 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         {
             size_t start = i * chunkClus;
             size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
-            assignArgs.push_back({start, end, valMVector, allCount, colM, valM});
+            assignArgs.push_back({start, end, valMVector, allCount, csrM});
             pthread_create(&threadsAssign[i], NULL, fnAssignM, (void *)&assignArgs[i]);
         }
 
-        for (pthread_t i : threadsAssign)
+        for (pthread_t &i : threadsAssign)
         {
             pthread_join(i, NULL);
         }
@@ -306,7 +305,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
         valMVector.assign(nclus, 0);
     }
 
-    rowM[nclus] = allCount.load(); // last element of rowM is the number of non-zero elements of valM and colM
-    colM.resize(allCount.load());
-    valM.resize(allCount.load());
+    csrM.row[nclus] = allCount.load(); // last element of rowM is the number of non-zero elements of valM and colM
+    csrM.col.resize(allCount.load());
+    csrM.val.resize(allCount.load());
 }

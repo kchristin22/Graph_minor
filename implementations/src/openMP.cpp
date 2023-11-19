@@ -42,25 +42,24 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
     }
 }
 
-void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
-            std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
+void openMP(CSR &csrM, CSR &csr, std::vector<size_t> &c)
 {
-    if (row.size() != (c.size() + 1))
+    if (csr.row.size() != (c.size() + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (col.size() != val.size())
+    else if (csr.col.size() != csr.val.size())
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == (col.size() + 1))
+    else if (csr.row.size() == (csr.col.size() + 1))
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((rowM.size() != row.size()) || (colM.size() != col.size()) || (valM.size() != val.size()))
+    else if ((csrM.row.size() != csr.row.size()) || (csrM.col.size() != csr.col.size()) || (csrM.val.size() != csr.val.size()))
     // if the input graph is its the minor, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
@@ -75,7 +74,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
     size_t end, allCount = 0, localCount;
     bool clusterHasElements = 0;
     uint32_t auxValueVector[nclus]{0}; // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus + 1);            // resize vector to the number of clusters
+    csrM.row.resize(nclus + 1);        // resize vector to the number of clusters
 
     size_t chunk = n / 16; // how many cache lines the array fills:
                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
@@ -113,7 +112,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
-        rowM[id - 1] = allCount;
+        csrM.row[id - 1] = allCount;
 
 #pragma omp parallel num_threads(numThreadsClus)
 #pragma omp for nowait schedule(static, chunkClus)
@@ -130,16 +129,16 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
 
-            end = row[i + 1];
+            end = csr.row[i + 1];
 
-            if (row[i] == end) // this row has no non-zero elements
+            if (csr.row[i] == end) // this row has no non-zero elements
                 continue;
             if (!clusterHasElements) // declare that this row has non-zero elements only once
                 clusterHasElements = 1;
 
-            for (size_t j = row[i]; j < end; j++)
+            for (size_t j = csr.row[i]; j < end; j++)
             {
-                auxValueVector[c[col[j]] - 1] += val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
+                auxValueVector[c[csr.col[j]] - 1] += csr.val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
             }
         }
 
@@ -157,12 +156,12 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
                 localCount = allCount;
                 allCount++;
             }
-            valM[localCount] = auxValueVector[i];
-            colM[localCount] = i;
+            csrM.val[localCount] = auxValueVector[i];
+            csrM.col[localCount] = i;
         }
     }
 
-    rowM[nclus] = allCount; // last element of rowM is the number of non-zero elements of valM and colM
-    colM.resize(allCount);
-    valM.resize(allCount);
+    csrM.row[nclus] = allCount; // last element of rowM is the number of non-zero elements of valM and colM
+    csrM.col.resize(allCount);
+    csrM.val.resize(allCount);
 }
