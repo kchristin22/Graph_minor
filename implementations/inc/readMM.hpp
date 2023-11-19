@@ -1,7 +1,9 @@
+#pragma once
+
+#include <stdlib.h>
+#include <vector>
+#include <stdint.h>
 #include "mmio.h"
-#include "stdlib.h"
-#include "vector"
-#include "stdint.h"
 
 void verifyMMfile(int *N, int *nz, const char *filename);
 

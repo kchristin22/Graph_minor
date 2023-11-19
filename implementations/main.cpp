@@ -1,11 +1,9 @@
-#include "sequential.hpp"
+#include "GMsequential.hpp"
 #include "writeMM.hpp"
 #include "readMM.hpp"
-#include "openMP.hpp"
-#include "pthreads.hpp"
-#include "cmath"
-#include "sys/time.h"
-#include "coo_to_csr.hpp"
+#include "GMopenMP.hpp"
+#include "GMpthreads.hpp"
+#include <sys/time.h>
 
 int main(int argc, char *argv[])
 {

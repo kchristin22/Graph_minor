@@ -1,7 +1,6 @@
+#include <atomic>
+#include <omp.h>
 #include "coo_to_csr.hpp"
-#include "atomic"
-#include "stdio.h"
-#include "omp.h"
 
 void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical)
 {

@@ -1,10 +1,8 @@
-#include "openCilk.hpp"
-#include "cstdlib"
 #include <chrono>
-#include <iostream>
-#include "cilk/cilk_api.h"
-#include "atomic"
-#include "cilk/opadd_reducer.h"
+#include <atomic>
+#include <cilk/opadd_reducer.h>
+#include <cilk/cilk_api.h>
+#include "openCilk.hpp"
 
 inline void zero_s(void *v) { *(size_t *)v = 0; }
 inline void plus_s(void *l, void *r) { *(size_t *)l += *(size_t *)r; }

@@ -1,6 +1,6 @@
-#include "writeMM.hpp"
-#include "stdlib.h"
+#include <cstdlib>
 #include <algorithm>
+#include "writeMM.hpp"
 
 void writeMM(const char *filename, const int N, const int nz)
 {

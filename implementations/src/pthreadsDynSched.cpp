@@ -1,6 +1,4 @@
-#include "pthreads.hpp"
-#include "cstdlib"
-#include "iostream"
+#include "GMpthreads.hpp"
 
 bool finishedTasks = 0;
 

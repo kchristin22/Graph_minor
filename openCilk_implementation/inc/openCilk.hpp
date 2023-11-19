@@ -1,9 +1,6 @@
 #pragma once
 
-#include "stdio.h"
-#include "cilk/cilk.h"
-#include "vector"
-#include "stdint.h"
+#include <cilk/cilk.h>
 #include "coo_to_csr.hpp"
 
 #define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(int))
