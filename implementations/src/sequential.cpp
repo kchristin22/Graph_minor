@@ -70,7 +70,7 @@ void seq(std::vector<int> &M, std::vector<int> &A, std::vector<size_t> &c)
 void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
          std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
 {
-    if (row.size() != c.size())
+    if (row.size() != (c.size() + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
@@ -80,7 +80,7 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint3
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == col.size())
+    else if (row.size() == (col.size() + 1))
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
@@ -93,7 +93,6 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint3
     }
 
     size_t n = c.size();
-    size_t nz = val.size();
     size_t nclus;
 
     numClusters(nclus, c);
@@ -101,7 +100,7 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint3
     size_t end, allCount = 0; // store offset to assign to each rowM element
     bool clusterHasElements = 0;
     std::vector<int> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                     // resize vector to the number of clusters
+    rowM.resize(nclus + 1);                 // resize vector to the number of clusters
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -114,10 +113,7 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint3
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
 
-            if (i == (n - 1)) // last row contains the last range of non-zero elements
-                end = nz;
-            else
-                end = row[i + 1];
+            end = row[i + 1];
 
             if (row[i] == end) // this row has no non-zero elements
                 continue;
@@ -141,6 +137,7 @@ void seq(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint3
             allCount++;
         }
     }
+    rowM[nclus] = allCount; // last element of rowM is the number of non-zero elements of valM and colM
     colM.resize(allCount);
     valM.resize(allCount);
 }

@@ -45,7 +45,7 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
 void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
             std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
 {
-    if (row.size() != c.size())
+    if (row.size() != (c.size() + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
@@ -55,7 +55,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == col.size())
+    else if (row.size() == (col.size() + 1))
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
@@ -68,7 +68,6 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
     }
 
     size_t n = c.size();
-    size_t nz = val.size();
     size_t nclus;
 
     numClusters(nclus, c); // find the number of distinct clusters
@@ -131,10 +130,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
 
-            if (i == (n - 1)) // last row contains the last range of non-zero elements
-                end = nz;
-            else
-                end = row[i + 1];
+            end = row[i + 1];
 
             if (row[i] == end) // this row has no non-zero elements
                 continue;
@@ -166,6 +162,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
         }
     }
 
+    rowM[nclus] = allCount; // last element of rowM is the number of non-zero elements of valM and colM
     colM.resize(allCount);
     valM.resize(allCount);
 }

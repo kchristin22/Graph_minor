@@ -15,7 +15,7 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_
         printf("Error: at least one of the pairs has unmatched dimensions: (I,J), (I,V) \n");
         exit(1);
     }
-    if ((row.size() != N) || (col.size() != J.size()) || (val.size() != V.size()))
+    if ((row.size() != (N + 1)) || (col.size() != J.size()) || (val.size() != V.size()))
     {
         printf("Error: at least one of the outputs has wrong dimensions \n");
         exit(1);
@@ -77,6 +77,7 @@ void csr(std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_
                 val[localCount] = V[j];
             }
         }
+        row[N] = nz;
     }
 }
 
@@ -112,7 +113,7 @@ int main(int argc, char *argv[])
     std::vector<size_t> J(nzread, 0);
     std::vector<uint32_t> V(nzread, 0);
 
-    std::vector<size_t> row(Nread, 0);
+    std::vector<size_t> row(Nread + 1, 0);
     std::vector<size_t> col(nzread, 0);
     std::vector<uint32_t> val(nzread, 0);
 
@@ -141,7 +142,7 @@ int main(int argc, char *argv[])
     // }
     // printf("\n");
 
-    std::vector<size_t> rowM(Nread, 0);
+    std::vector<size_t> rowM(Nread + 1, 0);
     std::vector<size_t> colM(nzread, 0);
     std::vector<uint32_t> valM(nzread, 0);
 
@@ -170,7 +171,7 @@ int main(int argc, char *argv[])
 
     colM.resize(nzread, 0);
     valM.resize(nzread, 0);
-    rowM.resize(Nread, 0);
+    rowM.resize(Nread + 1, 0);
 
     gettimeofday(&start, NULL);
     openMP(rowM, colM, valM, row, col, val, conf);
@@ -196,7 +197,7 @@ int main(int argc, char *argv[])
 
     colM.resize(nzread, 0);
     valM.resize(nzread, 0);
-    rowM.resize(Nread, 0);
+    rowM.resize(Nread + 1, 0);
 
     gettimeofday(&start, NULL);
     pthreads(rowM, colM, valM, row, col, val, conf);
