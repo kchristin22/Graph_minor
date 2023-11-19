@@ -190,7 +190,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
 
     std::atomic<size_t> allCount(0);
     bool clusterHasElements = 0;
-    rowM.resize(nclus); // resize vector to the number of clusters
+    rowM.resize(nclus + 1); // resize vector to the number of clusters
 
     size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE;
     size_t numThreadsClus = 4;

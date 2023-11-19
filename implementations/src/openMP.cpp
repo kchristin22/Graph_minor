@@ -75,7 +75,7 @@ void openMP(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<ui
     size_t end, allCount = 0, localCount;
     bool clusterHasElements = 0;
     uint32_t auxValueVector[nclus]{0}; // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    rowM.resize(nclus);                // resize vector to the number of clusters
+    rowM.resize(nclus + 1);            // resize vector to the number of clusters
 
     size_t chunk = n / 16; // how many cache lines the array fills:
                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
