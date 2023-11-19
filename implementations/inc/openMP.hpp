@@ -7,6 +7,6 @@
 #include "stdint.h"
 #include "coo_to_csr.hpp"
 
-inline void numClusters(size_t &nclus, std::vector<size_t> &c);
+inline void numClusters(size_t &nclus, const std::vector<size_t> &c);
 
-void openMP(CSR &csrM, CSR &csr, std::vector<size_t> &c);
+void openMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);

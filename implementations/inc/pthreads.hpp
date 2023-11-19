@@ -16,8 +16,8 @@ struct range
 
 struct nclusThread
 {
-    size_t start;
-    size_t end;
+    const size_t start;
+    const size_t end;
     const std::vector<size_t> &c;
     size_t &nclus;
 };
@@ -53,7 +53,7 @@ struct reductionThread
     const size_t id_start;
     const size_t id_end;
     const size_t nclus;
-    std::vector<uint32_t> &inputArray;
+    const std::vector<uint32_t> &inputArray;
     std::vector<uint32_t> &outputArray;
 };
 
@@ -73,7 +73,7 @@ struct assignThread
 {
     const size_t start;
     const size_t end;
-    std::vector<uint32_t> &auxValueVector;
+    const std::vector<uint32_t> &auxValueVector;
     std::atomic<size_t> &allCount;
     CSR &csrM;
 };
@@ -86,4 +86,4 @@ void *fnSumAux(void *args);
 
 void *fnAssignM(void *args);
 
-void pthreads(CSR &csrM, CSR &csr, std::vector<size_t> &c);
+void pthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);

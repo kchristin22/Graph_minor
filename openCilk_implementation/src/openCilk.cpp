@@ -7,11 +7,9 @@
 #include "cilk/opadd_reducer.h"
 
 inline void zero_s(void *v) { *(size_t *)v = 0; }
-inline void zero_i(void *v) { *(uint32_t *)v = 0; }
 inline void plus_s(void *l, void *r) { *(size_t *)l += *(size_t *)r; }
-inline void plus_i(void *l, void *r) { *(uint32_t *)l += *(uint32_t *)r; }
 
-inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, std::vector<size_t> &c)
+inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
@@ -52,7 +50,7 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, std::vector
     }
 }
 
-void GMopenCilk(CSR &csrM, CSR &csr, std::vector<size_t> &c)
+void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
     if (csr.row.size() != (c.size() + 1))
     {

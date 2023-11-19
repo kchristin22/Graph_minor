@@ -3,7 +3,7 @@
 #include "stdio.h"
 #include "omp.h"
 
-void coo_to_csr(CSR &csr, COO &coo, size_t N, bool symmetrical)
+void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical)
 {
     // std::vector<size_t> &I = coo.I;
     // std::vector<size_t> &J = coo.J;

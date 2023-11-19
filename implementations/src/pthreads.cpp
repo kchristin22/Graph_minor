@@ -108,7 +108,7 @@ void *fnAssignM(void *args)
     return nullptr;
 }
 
-void pthreads(CSR &csrM, CSR &csr, std::vector<size_t> &c)
+void pthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
     if (csr.row.size() != (c.size() + 1))
     {

@@ -2,7 +2,7 @@
 #include "stdlib.h"
 #include <algorithm>
 
-void writeMM(char *filename, int N, int nz)
+void writeMM(const char *filename, const int N, const int nz)
 {
   MM_typecode matcode;
 

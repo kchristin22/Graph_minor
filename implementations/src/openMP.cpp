@@ -1,7 +1,7 @@
 #include "openMP.hpp"
 #include "cstdlib"
 
-inline void numClusters(size_t &nclus, std::vector<size_t> &c)
+inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
@@ -42,7 +42,7 @@ inline void numClusters(size_t &nclus, std::vector<size_t> &c)
     }
 }
 
-void openMP(CSR &csrM, CSR &csr, std::vector<size_t> &c)
+void openMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
     if (csr.row.size() != (c.size() + 1))
     {

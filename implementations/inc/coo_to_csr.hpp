@@ -19,4 +19,4 @@ struct CSR
 };
 
 /* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val) */
-void coo_to_csr(CSR &csr, COO &coo, size_t N, bool symmetrical);
+void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical);
