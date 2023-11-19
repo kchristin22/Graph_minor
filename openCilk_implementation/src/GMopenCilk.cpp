@@ -1,4 +1,4 @@
-#include <chrono>
+#include <chrono> // del
 #include <atomic>
 #include <cilk/opadd_reducer.h>
 #include <cilk/cilk_api.h>
@@ -25,7 +25,6 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::
         numThreads = cacheLines;
     }
 
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads;
 
 #pragma cilk_grainsize = cacheLines
     cilk_for(size_t i = 0; i < n; i++)
@@ -37,8 +36,6 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::
 
     nclus = 0;
 
-// #pragma omp parallel num_threads(numThreads)
-// #pragma omp for nowait reduction(+ : nclus) schedule(dynamic, chunk)
 #pragma cilk_grainsize = cacheLines
     cilk_for(size_t i = 0; i < n; i++)
     {
@@ -98,8 +95,6 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         numThreads = cacheLines;
     }
 
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads;
-
     size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE_INT;
     size_t numThreadsClus = 4;
     if (!cacheLinesClus) // the auxValueVector array fits in a cache line
@@ -112,7 +107,6 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         numThreadsClus = cacheLinesClus;
     }
 
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE_INT / numThreadsClus;
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -125,10 +119,8 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
         clusterHasElements = 0;
 
-        // #pragma omp parallel num_threads(numThreads)
         // #pragma omp for nowait reduction(+ : auxValueVector[ : nclus]) private(end) schedule(dynamic, chunk)
         // reduction of each element of the auxiliary vector
-        // auto start_clock = std::chrono::high_resolution_clock::now();
 
 #pragma cilk_grainsize = cacheLines
         cilk_for(size_t i = 0; i < n; i++)
