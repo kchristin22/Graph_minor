@@ -56,7 +56,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
                 std::vector<size_t> &row, std::vector<size_t> &col, std::vector<uint32_t> &val, std::vector<size_t> &c)
 {
 
-    if (row.size() != c.size())
+    if (row.size() != (c.size() + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
@@ -66,7 +66,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == col.size())
+    else if (row.size() == (col.size() + 1))
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
@@ -79,7 +79,6 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
     }
 
     size_t n = c.size();
-    size_t nz = val.size();
     size_t cilk_reducer(zero_s, plus_s) nclus = 0;
 
     numClusters(nclus, c); // find the number of distinct clusters
@@ -92,7 +91,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
     std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     // std::vector<uint32_t> auxValueVector(nclus);
 
-    rowM.resize(nclus); // resize vector to the number of clusters
+    rowM.resize(nclus + 1); // resize vector to the number of clusters
 
     size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_INT; // how many cache lines the array fills:
                                                          // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
@@ -125,7 +124,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
-        rowM[id - 1] = allCount;
+        rowM[id - 1] = allCount.load();
 
 #pragma cilk_grainsize = cacheLinesClus
         cilk_for(size_t i = 0; i < nclus; i++)
@@ -145,10 +144,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
 
-            if (i == (n - 1)) // last row contains the last range of non-zero elements
-                end = nz;
-            else
-                end = row[i + 1];
+            end = row[i + 1];
 
             if (row[i] == end) // this row has no non-zero elements
                 continue;
@@ -180,6 +176,7 @@ void GMopenCilk(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vecto
         }
     }
 
-    colM.resize(allCount);
-    valM.resize(allCount);
+    rowM[nclus] = allCount.load();
+    colM.resize(allCount.load());
+    valM.resize(allCount.load());
 }
