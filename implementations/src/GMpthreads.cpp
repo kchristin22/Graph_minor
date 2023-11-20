@@ -34,6 +34,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
     if (end > (Args->c.size()))
         end = Args->c.size();
+
     size_t startClus = Args->startClus;
     size_t endClus = Args->endClus;
     if (endClus > Args->nclus)
@@ -78,9 +79,6 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
         pthread_barrier_wait(&barrier);
 
-        if (!Args->doAssign)
-            continue;
-
         for (size_t i = startClus; i < endClus; i++)
         {
             if (Args->commonAux[i].load() == 0)
@@ -97,7 +95,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
     return nullptr;
 }
 
-void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
+void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads)
 {
     if (csr.row.size() != (c.size() + 1))
     {
@@ -123,29 +121,28 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
     size_t n = c.size();
 
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE; // how many cache lines the array fills:
-                                                     // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    size_t numThreads = 4;                           // consider edge case where we need + 1 thread
+    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_SIZE_T; // how many cache lines the array fills:
+                                                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
 
     if (!cacheLines)
     {
-        numThreads = 1;
         cacheLines = 1;
     }
-    else if (cacheLines <= numThreads) // the array of the smallest type (int < size_t) fits in <=4 cache lines
+
+    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads;
+    if (!chunk)
     {
-        numThreads = cacheLines;
+        chunk = n / numThreads; // we assign equal number of elements to each thread
     }
 
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE / numThreads;
     size_t lastThreadChunk = chunk;
 
     if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
     {
         lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
     }
-    else // the array fits in a single cache line
-        lastThreadChunk = n;
+    // else // the array fits in a single cache line
+    //     lastThreadChunk = n;
 
     // if we used different variables for each thread and then calculate their sum,
     // since this vector of variables would fit in a single cache line,
@@ -176,40 +173,60 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         nclus += nclusVector[i];
     }
 
-    size_t cacheLinesClus = nclus / 16;
-    size_t numThreadsClus = 4;
+    // re-calculate cachelines and chunk sizes for the INT vectors
+    cacheLines = n / ELEMENTS_PER_CACHE_LINE_INT; // how many cache lines the array fills:
+                                                  // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+
+    if (!cacheLines)
+    {
+        cacheLines = 1;
+    }
+
+    chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_INT / numThreads;
+    if (!chunk)
+    {
+        chunk = n / numThreads; // we assign equal number of elements to each thread
+    }
+
+    lastThreadChunk = chunk;
+
+    if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
+    {
+        lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
+    }
+    // else // the array fits in a single cache line
+    //     lastThreadChunk = n;
+
+    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE_INT;
     if (!cacheLinesClus) // the auxValueVector array fits in a cache line
     {
-        numThreadsClus = 1;
         cacheLinesClus = 1;
     }
-    else if (cacheLinesClus <= numThreadsClus)
-    {
-        numThreadsClus = cacheLinesClus;
-    }
-    // numThreadsClus = 4;
 
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE / numThreadsClus;
+    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE_INT / numThreads;
+    if (!chunkClus)
+    {
+        chunkClus = nclus / numThreads;
+    }
+
     size_t lastThreadChunkClus = chunkClus;
 
-    if (nclus > (chunkClus * numThreadsClus)) // n does not fill in an integer number of cachelines
+    if (nclus > (chunkClus * numThreads)) // n does not fill in an integer number of cachelines
     {
-        lastThreadChunkClus = chunkClus + (nclus - (chunkClus * numThreadsClus)); // the last thread gets its chunk + the remaining items
+        lastThreadChunkClus = chunkClus + (nclus - (chunkClus * numThreads)); // the last thread gets its chunk + the remaining items
     }
-    else if (nclus <= (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
-        lastThreadChunkClus = nclus;
+    // else // the array fits in a single cache line
+    //     lastThreadChunkClus = nclus;
 
     std::atomic<size_t> allCount(0);
     csrM.row.resize(nclus + 1); // resize vector to the number of clusters
 
-    std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
+    std::cout << "Running with numThreads: " << numThreads << std::endl;
 
     pthread_t threads[numThreads];
 
     std::vector<threadArgs> argsVector;
     argsVector.reserve(numThreads);
-
-    bool doAssign = 1;
 
     std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     pthread_barrier_init(&barrier, NULL, numThreads);
@@ -221,11 +238,8 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
         startClus = i * chunkClus;
-        size_t endClus = (i == (numThreadsClus - 1)) ? (startClus + lastThreadChunkClus) : (startClus + chunkClus);
-        if (i == numThreadsClus)
-            doAssign = 0;
-
-        argsVector.push_back({nclus, start, end, startClus, endClus, doAssign, csr, c, commonAux, allCount, csrM});
+        size_t endClus = (i == (numThreads - 1)) ? (startClus + lastThreadChunkClus) : (startClus + chunkClus);
+        argsVector.push_back({nclus, start, end, startClus, endClus, csr, c, commonAux, allCount, csrM});
         pthread_create(&threads[i], NULL, fnThread, (void *)&argsVector[i]);
     }
 

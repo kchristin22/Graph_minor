@@ -5,7 +5,8 @@
 #include <queue>
 #include "coo_to_csr.hpp"
 
-#define ELEMENTS_PER_CACHE_LINE (64 / sizeof(int))
+#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(int))
+#define ELEMENTS_PER_CACHE_LINE_SIZE_T (64 / sizeof(size_t))
 
 struct nclusThread
 {
@@ -22,7 +23,6 @@ struct threadArgs
     const size_t end;
     const size_t startClus;
     const size_t endClus;
-    const bool doAssign;
     const CSR &csr;
     const std::vector<size_t> &c;
     std::vector<std::atomic<uint32_t>> &commonAux;
@@ -51,4 +51,4 @@ struct consThread
 
 void *fnNumClusters(void *args);
 
-void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);
+void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads);

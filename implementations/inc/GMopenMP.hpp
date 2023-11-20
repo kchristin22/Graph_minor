@@ -3,6 +3,9 @@
 #include <omp.h>
 #include "coo_to_csr.hpp"
 
-inline void numClusters(size_t &nclus, const std::vector<size_t> &c);
+#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(int))
+#define ELEMENTS_PER_CACHE_LINE_SIZE_T (64 / sizeof(size_t))
 
-void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);
+inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint32_t numThreads);
+
+void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads);
