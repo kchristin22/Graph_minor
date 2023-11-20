@@ -6,23 +6,10 @@
 inline void zero_s(void *v) { *(size_t *)v = 0; }
 inline void plus_s(void *l, void *r) { *(size_t *)l += *(size_t *)r; }
 
-inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::vector<size_t> &c, const uint32_t numThreads)
+inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
-
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_SIZE_T; // a chunk of x elements of a size_t array (8*x bytes) will be equal to a cache line (64 bytes)
-
-    if (!cacheLines) // the array of the smallest type (int < size_t) fits in a cache line
-    {
-        cacheLines = 1;
-    }
-
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads; // min chunk size
-    if (!chunk)                                                              // if we have too many threads, then threads must share a cache line
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
 
     cilk_for(size_t i = 0; i < n; i++)
     {
@@ -41,7 +28,7 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::
     }
 }
 
-void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads)
+void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
     if (csr.row.size() != (c.size() + 1))
     {
@@ -68,48 +55,24 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     size_t n = c.size();
     size_t cilk_reducer(zero_s, plus_s) nclus = 0;
 
-    numClusters(nclus, c, numThreads); // find the number of distinct clusters
+    numClusters(nclus, c); // find the number of distinct clusters
 
     size_t end, localCount;
     std::atomic<uint32_t> allCount(0);
     bool clusterHasElements = 0;
     std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    // std::vector<uint32_t> auxValueVector(nclus);
 
     csrM.row.resize(nclus + 1); // resize vector to the number of clusters
 
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_INT; // how many cache lines the array fills:
-                                                         // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    if (!cacheLines)                                     // the array of the smallest type (int < size_t) fits in a cache line
-    {
-        cacheLines = 1;
-    }
-
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_INT / numThreads; // min chunk size
-    if (!chunk)                                                           // if we have too many threads, then threads must share a cache line
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
-
-    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE_INT;
-    if (!cacheLinesClus) // the auxValueVector array fits in a cache line
-    {
-        cacheLinesClus = 1;
-    }
-
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE_INT / numThreads; // min chunk size
-    if (!chunkClus)                                                               // if we have too many threads, then threads must share a cache line
-    {
-        chunkClus = nclus / numThreads; // we assign equal number of elements to each thread
-    }
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
         csrM.row[id - 1] = allCount.load();
 
         cilk_for(size_t i = 0; i < nclus; i++)
-            auxValueVector[i]
-                .store(0); // reset auxiliary vector
+        {
+            auxValueVector[i] = 0; // reset auxiliary vector
+        }
 
         clusterHasElements = 0;
 

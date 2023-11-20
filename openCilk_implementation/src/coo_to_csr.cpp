@@ -37,28 +37,11 @@ void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical
     }
     else
     {
-        size_t chunk = N / 16;
-        size_t numThreads = chunk / 4;
-        if (!chunk)
-        {
-            chunk = N;
-        }
-
-        if (!numThreads)
-        {
-            numThreads = 1;
-        }
-        else if (numThreads > 4)
-        {
-            numThreads = 4;
-        }
 
         for (size_t index = 0; index < N; index++)
         {
             csr.row[index] = count;
 
-            // #pragma omp parallel num_threads(numThreads)
-            // #pragma omp for nowait private(localCount) schedule(dynamic, chunk)
             cilk_for(size_t j = 0; j < nz; j++)
             {
                 if (coo.I[j] != index)

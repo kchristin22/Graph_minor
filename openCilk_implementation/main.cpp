@@ -4,26 +4,14 @@
 #include <sys/time.h>
 #include <cilk/cilk_api.h>
 
-#define NUM_THREADS 4
-
 int main(int argc, char *argv[])
 {
-
-    cilk_for(size_t i = 0; i < 10; i++)
-    {
-        printf("Hello world from thread %d, nthreads %d\n", __cilkrts_get_worker_number(), __cilkrts_get_nworkers());
-    }
-
-    uint32_t numThreads = NUM_THREADS;
 
     if (argc < 2)
     {
         fprintf(stderr, "Usage: %s [martix-market-filename]\n", argv[0]);
         exit(1);
     }
-    else if (argc == 3)
-        if (atoi(argv[2]) > 0)
-            numThreads = atoi(argv[2]);
 
     char *filename = (char *)argv[1];
 
@@ -87,7 +75,7 @@ int main(int argc, char *argv[])
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    GMopenCilk(csrM, csr, conf, numThreads);
+    GMopenCilk(csrM, csr, conf);
     gettimeofday(&end, NULL);
     printf("openCilk time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
