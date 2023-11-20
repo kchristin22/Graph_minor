@@ -4,6 +4,7 @@
 #include "GMopenMP.hpp"
 #include "GMpthreads.hpp"
 #include <sys/time.h>
+#include <string.h>
 
 int main(int argc, char *argv[])
 {
@@ -28,7 +29,7 @@ int main(int argc, char *argv[])
     std::vector<size_t> conf(Nread, 1);
     for (int i = 0; i < 1000; i++)
     {
-        conf[i] = i+1;
+        conf[i] = i + 1;
         // printf("%ld ", conf[i]);
     }
     // printf("\n");
@@ -81,22 +82,25 @@ int main(int argc, char *argv[])
     gettimeofday(&end, NULL);
     printf("seq time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%ld ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%ld ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
-    printf("\n");
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%ld ", valM[i]);
+    // }
+    // printf("\n");
+
+    std::vector<size_t> rowM2(Nread + 1, 0);
+    rowM2 = rowM;
 
     colM.resize(nzread, 0);
     valM.resize(nzread, 0);
@@ -107,22 +111,27 @@ int main(int argc, char *argv[])
     gettimeofday(&end, NULL);
     printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%ld ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%ld ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
-    printf("\n");
+    std::vector<size_t> rowM3(Nread + 1, 0);
+    rowM3 = rowM;
+
+    if (rowM2 != rowM3)
+        printf("seq not in accordance to openmp\n");
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%ld ", valM[i]);
+    // }
+    // printf("\n");
 
     colM.resize(nzread, 0);
     valM.resize(nzread, 0);
@@ -132,22 +141,27 @@ int main(int argc, char *argv[])
     GMpthreads(csrM, csr, conf);
     gettimeofday(&end, NULL);
     printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
+    std::vector<size_t> rowM4(Nread + 1, 0);
+    rowM4 = rowM;
 
-    printf("rowM: ");
-    for (size_t i = 0; i < rowM.size(); i++)
-    {
-        printf("%ld ", rowM[i]);
-    }
-    printf("\ncolM: ");
-    for (size_t i = 0; i < colM.size(); i++)
-    {
-        printf("%ld ", colM[i]);
-    }
-    printf("\nvalM: ");
-    for (size_t i = 0; i < valM.size(); i++)
-    {
-        printf("%d ", valM[i]);
-    }
+    if (rowM2 != rowM4)
+        printf("seq not in accordance to pthreads\n");
+
+    // printf("rowM: ");
+    // for (size_t i = 0; i < rowM.size(); i++)
+    // {
+    //     printf("%ld ", rowM[i]);
+    // }
+    // printf("\ncolM: ");
+    // for (size_t i = 0; i < colM.size(); i++)
+    // {
+    //     printf("%ld ", colM[i]);
+    // }
+    // printf("\nvalM: ");
+    // for (size_t i = 0; i < valM.size(); i++)
+    // {
+    //     printf("%ld ", valM[i]);
+    // }
     printf("\n");
 
     return 0;

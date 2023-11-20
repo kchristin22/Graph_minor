@@ -4,7 +4,7 @@
 #include "GMpthreads.hpp"
 
 pthread_barrier_t barrier;
-pthread_mutex_t mutex;
+// pthread_mutex_t mutex;
 
 void *fnNumClusters(void *args)
 {
@@ -33,17 +33,19 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
     threadArgs *Args = (threadArgs *)args;
     size_t start = Args->start;
-    size_t end = start + Args->chunk; // add cluster start index
+    size_t end = Args->end; // add cluster start index
 
-    if (end > Args->csr.row.size())
-        end = Args->csr.row.size();
+    if (end > (Args->c.size()))
+        end = Args->c.size();
     size_t startClus = Args->startClus;
-    size_t endClus = startClus + Args->chunkClus;
+    size_t endClus = Args->endClus;
+    if (endClus > Args->nclus)
+        endClus = Args->nclus;
 
     std::vector<uint32_t> auxValueVector(Args->nclus, 0);
 
     size_t x, endAux, localCount = 0;
-    bool clusterHasElements = 0;
+
     for (size_t id = 1; id < (Args->nclus + 1); id++)
     { // cluster ids start from 1
 
@@ -74,9 +76,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
         {
             if (auxValueVector[i] == 0)
                 continue;
-            pthread_mutex_lock(&mutex);
             Args->commonAux[i].fetch_add(auxValueVector[i]);
-            pthread_mutex_unlock(&mutex);
         }
 
         pthread_barrier_wait(&barrier);
@@ -93,7 +93,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
             Args->csrM.val[localCount] = Args->commonAux[i];
             Args->csrM.col[localCount] = i;
-            Args->commonAux[i].store(0);
+            Args->commonAux[i] = 0;
         }
     }
 
@@ -149,8 +149,6 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     }
     else // the array fits in a single cache line
         lastThreadChunk = n;
-
-    printf("chunk, lastThreadChunk: %ld, %ld\n", chunk, lastThreadChunk);
 
     // if we used different variables for each thread and then calculate their sum,
     // since this vector of variables would fit in a single cache line,
@@ -228,24 +226,25 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
     std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     pthread_barrier_init(&barrier, NULL, numThreads);
-    pthread_mutex_init(&mutex, NULL);
+    // pthread_mutex_init(&mutex, NULL);
 
     std::vector<threadArgs> argsVector;
     argsVector.reserve(numThreads);
 
     bool doAssign = 1;
 
-    printf("chunk, chunkClus: %ld, %ld\n", chunk, chunkClus);
-    printf("lastThreadChunk, lastThreadChunkClus: %ld, %ld\n", lastThreadChunk, lastThreadChunkClus);
+    size_t start, startClus;
 
     for (size_t i = 0; i < numThreads; i++)
     {
-        size_t chunkThread = (i == (numThreads - 1)) ? lastThreadChunk : chunk;
-        size_t chunkClusThread = (i == (numThreadsClus - 1)) ? lastThreadChunkClus : chunkClus;
+        start = i * chunk;
+        size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
+        startClus = i * chunkClus;
+        size_t endClus = (i == (numThreadsClus - 1)) ? (startClus + lastThreadChunkClus) : (startClus + chunkClus);
         if (i == numThreadsClus)
             doAssign = 0;
 
-        argsVector.push_back({i, nclus, i * chunk, chunkThread, i * chunkClus, chunkClusThread, doAssign, csr, c, commonAux, allCount, csrM});
+        argsVector.push_back({nclus, start, end, startClus, endClus, doAssign, csr, c, commonAux, allCount, csrM});
         pthread_create(&threads[i], NULL, fnThread, (void *)&argsVector[i]);
     }
 
@@ -259,5 +258,5 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     csrM.val.resize(allCount);
 
     pthread_barrier_destroy(&barrier);
-    pthread_mutex_destroy(&mutex);
+    // pthread_mutex_destroy(&mutex);
 }

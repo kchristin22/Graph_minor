@@ -79,12 +79,11 @@ struct assignThread
 
 struct threadArgs
 {
-    const size_t threadID;
     const size_t nclus;
     const size_t start;
-    const size_t chunk;
+    const size_t end;
     const size_t startClus;
-    const size_t chunkClus;
+    const size_t endClus;
     const bool doAssign;
     const CSR &csr;
     const std::vector<size_t> &c;
