@@ -97,7 +97,7 @@ void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     size_t end, allCount = 0; // store offset to assign to each rowM element
     bool clusterHasElements = 0;
     std::vector<uint32_t> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    csrM.row.resize(nclus + 1);             // resize vector to the number of clusters
+    csrM.row.resize(nclus + 1);                  // resize vector to the number of clusters
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
@@ -119,10 +119,7 @@ void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
             for (size_t j = csr.row[i]; j < end; j++)
             {
-
                 auxValueVector[c[csr.col[j]] - 1] += csr.val[j]; // compress cols by summing the values of each cluster to the column the cluster id points to
-                // if ((c[csr.col[j]] - 1) == 0)
-                //     printf("auxValueVector[%ld] is %ld\n", c[csr.col[j]] - 1, auxValueVector[c[csr.col[j]] - 1]);
             }
         }
         if (!clusterHasElements)

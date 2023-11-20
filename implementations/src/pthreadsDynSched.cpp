@@ -71,25 +71,24 @@ inline void *fnNumClusters(void *args)
     return nullptr;
 }
 
-void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
-              const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c)
+void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
-    if (row.size() != c.size())
+    if (csr.row.size() != c.size())
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (col.size() != val.size())
+    else if (csr.col.size() != csr.val.size())
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == col.size())
+    else if (csr.row.size() == csr.col.size())
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((rowM.size() != row.size()) || (colM.size() != col.size()) || (valM.size() != val.size()))
+    else if ((csrM.row.size() != csr.row.size()) || (csrM.col.size() != csr.col.size()) || (csrM.val.size() != csr.val.size()))
     // if the input graph is its the minor, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
@@ -97,7 +96,7 @@ void pthreads(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<
     }
 
     size_t n = c.size();
-    size_t nz = val.size();
+    size_t nz = csr.val.size();
 
     size_t cacheLines = n / 16; // how many cache lines the array fills:
                                 // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing

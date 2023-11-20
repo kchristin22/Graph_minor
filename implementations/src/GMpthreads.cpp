@@ -1,10 +1,7 @@
-#include <sys/time.h>
-#include <chrono>   // del
-#include <iostream> // del
+#include <iostream>
 #include "GMpthreads.hpp"
 
 pthread_barrier_t barrier;
-// pthread_mutex_t mutex;
 
 void *fnNumClusters(void *args)
 {
@@ -209,29 +206,13 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
     pthread_t threads[numThreads];
 
-    pthread_attr_t attr;
-    cpu_set_t cpu_set;
-
-    pthread_attr_init(&attr);
-
-    // Set CPU affinity to use only CPU 0
-    CPU_ZERO(&cpu_set);
-    CPU_SET(0, &cpu_set);
-
-    if (pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpu_set) != 0)
-    {
-        perror("pthread_attr_setaffinity_np");
-        exit(EXIT_FAILURE);
-    }
-
-    std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    pthread_barrier_init(&barrier, NULL, numThreads);
-    // pthread_mutex_init(&mutex, NULL);
-
     std::vector<threadArgs> argsVector;
     argsVector.reserve(numThreads);
 
     bool doAssign = 1;
+
+    std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    pthread_barrier_init(&barrier, NULL, numThreads);
 
     size_t start, startClus;
 
@@ -258,5 +239,4 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     csrM.val.resize(allCount);
 
     pthread_barrier_destroy(&barrier);
-    // pthread_mutex_destroy(&mutex);
 }
