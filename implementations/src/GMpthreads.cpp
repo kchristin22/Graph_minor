@@ -1,7 +1,31 @@
-#include <iostream>
 #include "GMpthreads.hpp"
 
+
 pthread_barrier_t barrier;
+
+inline void calChunk(size_t &chunk, size_t &lastThreadChunk, const size_t n, const size_t min_chunk, const uint32_t numThreads)
+{
+    size_t cacheLines = n / min_chunk; // a chunk of x elements of a size_t array (8*x bytes) will be equal to a cache line (64 bytes)
+    if (!cacheLines)                   // the array of the smallest type (int < size_t) fits in a cache line
+    {
+        cacheLines = 1;
+    }
+
+    chunk = cacheLines * min_chunk / numThreads; // min chunk size
+    if (!chunk)                                  // if we have too many threads, then threads must share a cache line
+    {
+        chunk = n / numThreads; // we assign equal number of elements to each thread
+    }
+
+    lastThreadChunk = chunk;
+    if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
+    {
+        lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
+    }
+
+    // else // the array fits in a single cache line
+    //     lastThreadChunk = n;
+}
 
 void *fnNumClusters(void *args)
 {
@@ -121,28 +145,8 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
 
     size_t n = c.size();
 
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_SIZE_T; // how many cache lines the array fills:
-                                                            // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-
-    if (!cacheLines)
-    {
-        cacheLines = 1;
-    }
-
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads;
-    if (!chunk)
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
-
-    size_t lastThreadChunk = chunk;
-
-    if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
-    {
-        lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
-    }
-    // else // the array fits in a single cache line
-    //     lastThreadChunk = n;
+    size_t chunk, lastThreadChunk;
+    calChunk(chunk, lastThreadChunk, n, ELEMENTS_PER_CACHE_LINE_SIZE_T, numThreads);
 
     // if we used different variables for each thread and then calculate their sum,
     // since this vector of variables would fit in a single cache line,
@@ -174,54 +178,13 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     }
 
     // re-calculate cachelines and chunk sizes for the INT vectors
-    cacheLines = n / ELEMENTS_PER_CACHE_LINE_INT; // how many cache lines the array fills:
-                                                  // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+    calChunk(chunk, lastThreadChunk, n, ELEMENTS_PER_CACHE_LINE_INT, numThreads);
 
-    if (!cacheLines)
-    {
-        cacheLines = 1;
-    }
-
-    chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_INT / numThreads;
-    if (!chunk)
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
-
-    lastThreadChunk = chunk;
-
-    if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
-    {
-        lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
-    }
-    // else // the array fits in a single cache line
-    //     lastThreadChunk = n;
-
-    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE_INT;
-    if (!cacheLinesClus) // the auxValueVector array fits in a cache line
-    {
-        cacheLinesClus = 1;
-    }
-
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE_INT / numThreads;
-    if (!chunkClus)
-    {
-        chunkClus = nclus / numThreads;
-    }
-
-    size_t lastThreadChunkClus = chunkClus;
-
-    if (nclus > (chunkClus * numThreads)) // n does not fill in an integer number of cachelines
-    {
-        lastThreadChunkClus = chunkClus + (nclus - (chunkClus * numThreads)); // the last thread gets its chunk + the remaining items
-    }
-    // else // the array fits in a single cache line
-    //     lastThreadChunkClus = nclus;
+    size_t chunkClus, lastThreadChunkClus;
+    calChunk(chunkClus, lastThreadChunkClus, nclus, ELEMENTS_PER_CACHE_LINE_INT, numThreads);
 
     std::atomic<size_t> allCount(0);
     csrM.row.resize(nclus + 1); // resize vector to the number of clusters
-
-    std::cout << "Running with numThreads: " << numThreads << std::endl;
 
     pthread_t threads[numThreads];
 

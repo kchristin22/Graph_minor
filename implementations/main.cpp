@@ -1,10 +1,11 @@
+#include <iostream>
+#include <sys/time.h>
+#include <string.h>
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "GMsequential.hpp"
 #include "GMopenMP.hpp"
 #include "GMpthreads.hpp"
-#include <sys/time.h>
-#include <string.h>
 
 #define NUM_THREADS 4
 
@@ -22,16 +23,14 @@ int main(int argc, char *argv[])
         if (atoi(argv[2]) > 0)
             numThreads = atoi(argv[2]);
 
+    std::cout << "Running with numThreads: " << numThreads << std::endl;
+
     char *filename = (char *)argv[1];
 
     int Nread;
     int nzread;
 
     verifyMMfile(&Nread, &nzread, filename);
-
-    // std::vector<int> A(Nread * Nread, 0);
-
-    // readMM(A, filename, Nread, nzread);
 
     std::vector<size_t> conf(Nread, 1);
     for (int i = 0; i < 8000; i++)
@@ -53,7 +52,7 @@ int main(int argc, char *argv[])
     CSR csr = {row, col, val};
 
     readMM(I, J, V, filename, Nread, nzread);
-    coo_to_csr(csr, coo, Nread, false);
+    coo_to_csr(csr, coo, Nread, false, numThreads);
 
     // for (size_t i = 0; i < nzread; i++)
     // {
@@ -127,7 +126,7 @@ int main(int argc, char *argv[])
 
     if (rowM2 != rowM3 || colM2.size() != colM3.size())
         printf("seq not in accordance to openmp\n");
-    
+
     // printf("rowM: ");
     // for (size_t i = 0; i < rowM.size(); i++)
     // {

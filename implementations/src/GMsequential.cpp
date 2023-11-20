@@ -1,5 +1,6 @@
 #include "GMsequential.hpp"
 
+
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();

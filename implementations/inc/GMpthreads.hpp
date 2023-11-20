@@ -49,6 +49,8 @@ struct consThread
     pthread_cond_t *queueNotEmpty;
 };
 
+inline void calChunk(size_t &chunk, size_t &lastThreadChunk, const size_t n, const size_t min_chunk, const uint32_t numThreads);
+
 void *fnNumClusters(void *args);
 
 void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads);

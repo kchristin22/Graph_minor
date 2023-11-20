@@ -2,7 +2,6 @@
 #include "readMM.hpp"
 #include "GMopenCilk.hpp"
 #include <sys/time.h>
-#include <cilk/cilk_api.h>
 
 int main(int argc, char *argv[])
 {

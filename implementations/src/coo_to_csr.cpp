@@ -1,15 +1,10 @@
 #include <atomic>
 #include <omp.h>
-#include "coo_to_csr.hpp"
+#include "GMopenMP.hpp"
 
-void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical)
+
+void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical, const uint32_t numThreads)
 {
-    // std::vector<size_t> &I = coo.I;
-    // std::vector<size_t> &J = coo.J;
-    // std::vector<uint32_t> &V = coo.V;
-    // std::vector<size_t> &row = csr.row;
-    // std::vector<size_t> &col = csr.col;
-    // std::vector<uint32_t> &val = csr.val;
 
     if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
     {
@@ -43,21 +38,8 @@ void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical
     }
     else
     {
-        size_t chunk = N / 16;
-        size_t numThreads = chunk / 4;
-        if (!chunk)
-        {
-            chunk = N;
-        }
-
-        if (!numThreads)
-        {
-            numThreads = 1;
-        }
-        else if (numThreads > 4)
-        {
-            numThreads = 4;
-        }
+        size_t chunk;
+        calChunk(chunk, N, 16, numThreads);
 
         for (size_t index = 0; index < N; index++)
         {

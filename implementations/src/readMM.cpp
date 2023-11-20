@@ -1,5 +1,6 @@
 #include "readMM.hpp"
 
+
 void verifyMMfile(int *N, int *nz, const char *filename)
 {
     FILE *f;

@@ -1,21 +1,13 @@
 #include "GMopenMP.hpp"
 
+
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint32_t numThreads)
 {
     size_t n = c.size();
     std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_SIZE_T; // a chunk of x elements of a size_t array (8*x bytes) will be equal to a cache line (64 bytes)
-    if (!cacheLines)                                        // the array of the smallest type (int < size_t) fits in a cache line
-    {
-        cacheLines = 1;
-    }
-
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_SIZE_T / numThreads; // min chunk size
-    if (!chunk)                                                           // if we have too many threads, then threads must share a cache line
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
+    size_t chunk;
+    calChunk(chunk, n, ELEMENTS_PER_CACHE_LINE_SIZE_T, numThreads);
 
 #pragma omp parallel num_threads(numThreads)
 #pragma omp for nowait schedule(static, chunk)
@@ -72,30 +64,14 @@ void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uin
     uint32_t auxValueVector[nclus]{0}; // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     csrM.row.resize(nclus + 1);        // resize vector to the number of clusters
 
-    size_t cacheLines = n / ELEMENTS_PER_CACHE_LINE_INT; // how many cache lines the array fills:
-                                                         // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
-    if (!cacheLines)                                     // the array of the smallest type (int < size_t) fits in a cache line
-    {
-        cacheLines = 1;
-    }
+    size_t chunk, chunkClus;
+    calChunk(chunk, n, ELEMENTS_PER_CACHE_LINE_INT, numThreads); // how many cache lines the array fills:
+                                                                 // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+                                                                 // the array of the smallest type (int < size_t) fits in a cache line
 
-    size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE_INT / numThreads; // min chunk size
-    if (!chunk)                                                           // if we have too many threads, then threads must share a cache line
-    {
-        chunk = n / numThreads; // we assign equal number of elements to each thread
-    }
-
-    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE_INT;
-    if (!cacheLinesClus) // the auxValueVector array fits in a cache line
-    {
-        cacheLinesClus = 1;
-    }
-
-    size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE_INT / numThreads; // min chunk size
-    if (!chunkClus)                                                               // if we have too many threads, then threads must share a cache line
-    {
-        chunkClus = nclus / numThreads; // we assign equal number of elements to each thread
-    }
+    calChunk(chunkClus, nclus, ELEMENTS_PER_CACHE_LINE_INT, numThreads); // how many cache lines the array fills:
+                                                                         // a chunk of x elements of an int array (4*x bytes) will be equal to a cache line (64 bytes) to avoid false sharing
+                                                                         // the array of the smallest type (int < size_t) fits in a cache line
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {
