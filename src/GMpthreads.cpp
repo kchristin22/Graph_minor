@@ -1,6 +1,5 @@
 #include "GMpthreads.hpp"
 
-
 pthread_barrier_t barrier;
 
 inline void calChunk(size_t &chunk, size_t &lastThreadChunk, const size_t n, const size_t min_chunk, const uint32_t numThreads)
@@ -31,17 +30,21 @@ void *fnNumClusters(void *args)
 {
     nclusThread *nclusArgs = (nclusThread *)args;
     size_t n = nclusArgs->c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+
+    if (nclusArgs->discreetClus.size() < n)
+        nclusArgs->discreetClus.resize(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        discreetClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                                 // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+        nclusArgs->discreetClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+                                                            // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
+    pthread_barrier_wait(&barrier);
+
     for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        if (discreetClus[i] == 0)
+        if (nclusArgs->discreetClus[i] == 0)
             continue;
         nclusArgs->nclus++;
     }
@@ -153,17 +156,19 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     // the whole vector would be updated each time an element is changed, so it would be as or more costly
 
     size_t nclus = 0;
+    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
     std::vector<size_t> nclusVector(numThreads, 0);
     std::vector<nclusThread> nclusArgs;
     nclusArgs.reserve(numThreads);
 
     pthread_t nclusThreads[numThreads];
+    pthread_barrier_init(&barrier, NULL, numThreads);
 
     for (size_t i = 0; i < numThreads; i++)
     {
         size_t start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-        nclusArgs.push_back({start, end, c, nclusVector[i]});
+        nclusArgs.push_back({start, end, c, discreetClus, nclusVector[i]});
         pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
     }
 
@@ -192,7 +197,6 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     argsVector.reserve(numThreads);
 
     std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
-    pthread_barrier_init(&barrier, NULL, numThreads);
 
     size_t start, startClus;
 
