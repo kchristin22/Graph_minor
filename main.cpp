@@ -1,6 +1,7 @@
 #include <iostream>
 #include <sys/time.h>
 #include <string.h>
+#include <fstream>
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "GMsequential.hpp"
@@ -14,14 +15,14 @@ int main(int argc, char *argv[])
 
     uint32_t numThreads = NUM_THREADS;
 
-    if (argc < 2)
+    if (argc < 3)
     {
-        fprintf(stderr, "Usage: %s ${martix-market-filename} ${number-of-threads}\n", argv[0]);
+        fprintf(stderr, "Usage: %s ${martix-market-filename} ${c-matrix-filename} ${number-of-threads}\n", argv[0]);
         exit(1);
     }
-    else if (argc == 3)
-        if (atoi(argv[2]) > 0)
-            numThreads = atoi(argv[2]);
+    else if (argc == 4)
+        if (atoi(argv[3]) > 0)
+            numThreads = atoi(argv[3]);
 
     std::cout << "Running with numThreads: " << numThreads << std::endl;
 
@@ -33,13 +34,29 @@ int main(int argc, char *argv[])
     verifyMMfile(&Nread, &nzread, filename);
 
     std::vector<size_t> conf(Nread, 1);
-    for (int i = 0; i < 8000; i++)
+    char *cfilename = (char *)argv[2];
+    std::ifstream cfile(cfilename);
+
+    size_t c, index = 0;
+    while (cfile >> c)
     {
-        conf[i] = i + 1;
-        // printf("%ld ", conf[i]);
+        conf[index++] = c;
     }
+
+    // printf("conf: ");
+    // for (size_t i = 0; i < conf.size(); i++)
+    // {
+    //     printf("%ld ", conf[i]);
+    // }
+
+    // for (int i = 0; i < 25000; i++)
+    // {
+    //     conf[i] = i + 1;
+    //     // printf("%ld ", conf[i]);
+    // }
     // printf("\n");
 
+    printf("start\n");
     std::vector<size_t> I(nzread, 0);
     std::vector<size_t> J(nzread, 0);
     std::vector<uint32_t> V(nzread, 0);
@@ -105,6 +122,10 @@ int main(int argc, char *argv[])
     // }
     // printf("\n");
 
+    printf("row size: %ld\n", csrM.row.size());
+    printf("col size: %ld\n", csrM.col.size());
+    printf("val size: %ld\n", csrM.val.size());
+
     std::vector<size_t> rowM2(Nread + 1, 0);
     rowM2 = rowM;
     std::vector<size_t> colM2(nzread, 0);
@@ -148,7 +169,7 @@ int main(int argc, char *argv[])
     valM.resize(nzread, 0);
     rowM.resize(Nread + 1, 0);
 
-    gettimeofday(&start, NULL);
+    gettimeofday(&start, NULL); // move this inside?
     GMpthreads(csrM, csr, conf, numThreads);
     gettimeofday(&end, NULL);
     printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
@@ -157,8 +178,13 @@ int main(int argc, char *argv[])
     std::vector<size_t> colM4(nzread, 0);
     colM4 = colM;
 
-    if (rowM2 != rowM4 || colM2.size() != colM4.size())
+    if (rowM2 != rowM4 || colM2.size() != colM4.size()){
         printf("seq not in accordance to pthreads\n");
+        printf("rowM2.size: %ld, rowM4.size: %ld\n", rowM2.size(), rowM4.size());
+        printf("colM2.size: %ld, colM4.size: %ld\n", colM2.size(), colM4.size());
+    }
+
+
 
     // printf("rowM: ");
     // for (size_t i = 0; i < rowM.size(); i++)
