@@ -1,16 +1,23 @@
 #include "writeMM.hpp"
 #include "readMM.hpp"
-#include "sys/time.h"
 #include "GMopenCilk.hpp"
+#include <sys/time.h>
+
+#define NUM_THREADS 4
 
 int main(int argc, char *argv[])
 {
+
+    uint32_t numThreads = NUM_THREADS;
 
     if (argc < 2)
     {
         fprintf(stderr, "Usage: %s [martix-market-filename]\n", argv[0]);
         exit(1);
     }
+    else if (argc == 3)
+        if (atoi(argv[2]) > 0)
+            numThreads = atoi(argv[2]);
 
     char *filename = (char *)argv[1];
 
@@ -74,7 +81,7 @@ int main(int argc, char *argv[])
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    GMopenCilk(csrM, csr, conf);
+    GMopenCilk(csrM, csr, conf, numThreads);
     gettimeofday(&end, NULL);
     printf("openCilk time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
