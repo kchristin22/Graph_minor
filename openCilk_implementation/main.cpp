@@ -2,11 +2,17 @@
 #include "readMM.hpp"
 #include "GMopenCilk.hpp"
 #include <sys/time.h>
+#include <cilk/cilk_api.h>
 
 #define NUM_THREADS 4
 
 int main(int argc, char *argv[])
 {
+
+    cilk_for(size_t i = 0; i < 10; i++)
+    {
+        printf("Hello world from thread %d, nthreads %d\n", __cilkrts_get_worker_number(), __cilkrts_get_nworkers());
+    }
 
     uint32_t numThreads = NUM_THREADS;
 

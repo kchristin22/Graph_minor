@@ -4,12 +4,6 @@
 
 void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical)
 {
-    // std::vector<size_t> &I = coo.I;
-    // std::vector<size_t> &J = coo.J;
-    // std::vector<uint32_t> &V = coo.V;
-    // std::vector<size_t> &row = csr.row;
-    // std::vector<size_t> &col = csr.col;
-    // std::vector<uint32_t> &val = csr.val;
 
     if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
     {

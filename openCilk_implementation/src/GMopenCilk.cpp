@@ -24,17 +24,15 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::
         chunk = n / numThreads; // we assign equal number of elements to each thread
     }
 
-#pragma cilk_grainsize = chunk
     cilk_for(size_t i = 0; i < n; i++)
     {
-        // printf("id: %lu\n", __cilkrts_running_on_workers());
+        // printf("%lu", __cilkrts_get_worker_number());
         discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                     // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
     nclus = 0;
 
-#pragma cilk_grainsize = chunk
     cilk_for(size_t i = 0; i < n; i++)
     {
         if (discreetClus[i] == 0) // benefit from predicting
@@ -109,15 +107,12 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     {
         csrM.row[id - 1] = allCount.load();
 
-#pragma cilk_grainsize = cacheLinesClus
         cilk_for(size_t i = 0; i < nclus; i++)
             auxValueVector[i]
                 .store(0); // reset auxiliary vector
 
         clusterHasElements = 0;
 
-
-#pragma cilk_grainsize = cacheLines
         cilk_for(size_t i = 0; i < n; i++)
         {
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
@@ -139,7 +134,6 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
         if (!clusterHasElements)
             continue;
 
-#pragma cilk_grainsize = cacheLinesClus
         cilk_for(size_t i = 0; i < nclus; i++)
         {
             if (auxValueVector[i] == 0)
