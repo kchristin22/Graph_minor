@@ -77,6 +77,22 @@ struct assignThread
     CSR &csrM;
 };
 
+struct threadArgs
+{
+    const size_t threadID;
+    const size_t nclus;
+    const size_t start;
+    const size_t chunk;
+    const size_t startClus;
+    const size_t chunkClus;
+    const bool doAssign;
+    const CSR &csr;
+    const std::vector<size_t> &c;
+    std::vector<std::atomic<uint32_t>> &commonAux;
+    std::atomic<size_t> &allCount;
+    CSR &csrM;
+};
+
 void *fnNumClusters(void *args);
 
 void *fnClearAux(void *args);

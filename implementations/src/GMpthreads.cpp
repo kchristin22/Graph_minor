@@ -1,5 +1,10 @@
 #include <sys/time.h>
+#include <chrono>   // del
+#include <iostream> // del
 #include "GMpthreads.hpp"
+
+pthread_barrier_t barrier;
+pthread_mutex_t mutex;
 
 void *fnNumClusters(void *args)
 {
@@ -23,84 +28,74 @@ void *fnNumClusters(void *args)
     return nullptr;
 }
 
-void *fnClearAux(void *args)
+void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread (to calculate range), chunk, chunkClus, allCount, current clus id
 {
-    forThread *forArgs = (forThread *)args;
-    for (size_t i = forArgs->start; i < forArgs->end; i++)
-        forArgs->array[i] = 0; // reset auxiliary vector
 
-    return nullptr;
-}
+    threadArgs *Args = (threadArgs *)args;
+    size_t start = Args->start;
+    size_t end = start + Args->chunk; // add cluster start index
 
-void *fnSumAux(void *args)
-{
-    sumThread *sumArgs = (sumThread *)args;
-    size_t n = sumArgs->csr.row.size();
-    size_t index = sumArgs->auxValueIndex;
+    if (end > Args->csr.row.size())
+        end = Args->csr.row.size();
+    size_t startClus = Args->startClus;
+    size_t endClus = startClus + Args->chunkClus;
 
-    size_t end = sumArgs->end;
-    if (end > n)
-        end = n;
+    std::vector<uint32_t> auxValueVector(Args->nclus, 0);
 
-    size_t x, endAux;
-    for (size_t i = sumArgs->start; i < end; i++)
-    {
-        if (sumArgs->id != sumArgs->c[i]) // c[i] : cluster of row i of colCompressed / row
-            continue;
+    size_t x, endAux, localCount = 0;
+    bool clusterHasElements = 0;
+    for (size_t id = 1; id < (Args->nclus + 1); id++)
+    { // cluster ids start from 1
 
-        endAux = sumArgs->csr.row[i + 1];
+        pthread_barrier_wait(&barrier);
 
-        x = sumArgs->csr.row[i];
-        if (x == endAux) // this row has no non-zero elements
-            continue;
+        Args->csrM.row[id - 1] = Args->allCount.load();
 
-        if (!sumArgs->clusterHasElements) // declare that this row has non-zero elements only once
-            sumArgs->clusterHasElements = 1;
+        auxValueVector.assign(Args->nclus, 0);
 
-        for (size_t j = x; j < endAux; j++)
+        for (size_t i = start; i < end; i++)
         {
-            sumArgs->auxValueVector[index + sumArgs->c[sumArgs->csr.col[j]] - 1] += (sumArgs->csr.val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
+            if (id != Args->c[i]) // c[i] : cluster of row i of colCompressed / row
+                continue;
+
+            endAux = Args->csr.row[i + 1];
+
+            x = Args->csr.row[i];
+            if (x == endAux) // this row has no non-zero elements
+                continue;
+
+            for (size_t j = x; j < endAux; j++)
+            {
+                auxValueVector[Args->c[Args->csr.col[j]] - 1] += (Args->csr.val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
+            }
+        }
+
+        for (size_t i = 0; i < Args->nclus; i++)
+        {
+            if (auxValueVector[i] == 0)
+                continue;
+            pthread_mutex_lock(&mutex);
+            Args->commonAux[i].fetch_add(auxValueVector[i]);
+            pthread_mutex_unlock(&mutex);
+        }
+
+        pthread_barrier_wait(&barrier);
+
+        if (!Args->doAssign)
+            continue;
+
+        for (size_t i = startClus; i < endClus; i++)
+        {
+            if (Args->commonAux[i].load() == 0)
+                continue;
+
+            localCount = Args->allCount.fetch_add(1); // returns the previous value
+
+            Args->csrM.val[localCount] = Args->commonAux[i];
+            Args->csrM.col[localCount] = i;
+            Args->commonAux[i].store(0);
         }
     }
-
-    return nullptr;
-}
-
-void *fnReduction(void *args)
-{ // numThreadsClus
-    reductionThread *redArgs = (reductionThread *)args;
-    size_t nclus = redArgs->nclus;
-    size_t size = redArgs->inputArray.size();
-
-    for (size_t id = redArgs->id_start; id < redArgs->id_end; id++)
-    {
-        for (size_t i = (id - 1); i < size; i += nclus)
-        {
-            redArgs->outputArray[id - 1] += redArgs->inputArray[i];
-        }
-    }
-
-    return nullptr;
-
-    // else per nclus*numThreads chunk: redArgs->outputArray[id] += redArgs->inputArray[i];
-}
-
-void *fnAssignM(void *args)
-{
-
-    size_t localCount;
-    assignThread *assignArgs = (assignThread *)args;
-    for (size_t i = assignArgs->start; i < assignArgs->end; i++)
-    {
-        if (assignArgs->auxValueVector[i] == 0)
-            continue;
-
-        localCount = assignArgs->allCount.fetch_add(1); // returns the previous value
-
-        assignArgs->csrM.val[localCount] = assignArgs->auxValueVector[i];
-        assignArgs->csrM.col[localCount] = i;
-    }
-    // printf("localCount: %ld\n", localCount);
 
     return nullptr;
 }
@@ -148,12 +143,14 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     size_t chunk = cacheLines * ELEMENTS_PER_CACHE_LINE / numThreads;
     size_t lastThreadChunk = chunk;
 
-    if (n > (cacheLines * ELEMENTS_PER_CACHE_LINE)) // n does not fill in an integer number of cachelines
+    if (n > (chunk * numThreads)) // n does not fill in an integer number of cachelines
     {
-        lastThreadChunk = chunk + (n - cacheLines * ELEMENTS_PER_CACHE_LINE); // the last thread gets its chunk + the remaining items
+        lastThreadChunk = chunk + (n - (chunk * numThreads)); // the last thread gets its chunk + the remaining items
     }
     else // the array fits in a single cache line
         lastThreadChunk = n;
+
+    printf("chunk, lastThreadChunk: %ld, %ld\n", chunk, lastThreadChunk);
 
     // if we used different variables for each thread and then calculate their sum,
     // since this vector of variables would fit in a single cache line,
@@ -174,7 +171,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
     }
 
-    for (pthread_t i : nclusThreads)
+    for (pthread_t &i : nclusThreads)
     {
         pthread_join(i, NULL);
     }
@@ -184,11 +181,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         nclus += nclusVector[i];
     }
 
-    std::atomic<size_t> allCount(0);
-    bool clusterHasElements = 0;
-    csrM.row.resize(nclus + 1); // resize vector to the number of clusters
-
-    size_t cacheLinesClus = nclus / ELEMENTS_PER_CACHE_LINE;
+    size_t cacheLinesClus = nclus / 16;
     size_t numThreadsClus = 4;
     if (!cacheLinesClus) // the auxValueVector array fits in a cache line
     {
@@ -199,20 +192,24 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     {
         numThreadsClus = cacheLinesClus;
     }
+    // numThreadsClus = 4;
 
     size_t chunkClus = cacheLinesClus * ELEMENTS_PER_CACHE_LINE / numThreadsClus;
     size_t lastThreadChunkClus = chunkClus;
 
-    if (nclus > (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // n does not fill in an integer number of cachelines
+    if (nclus > (chunkClus * numThreadsClus)) // n does not fill in an integer number of cachelines
     {
-        lastThreadChunkClus = chunkClus + (nclus - cacheLinesClus * ELEMENTS_PER_CACHE_LINE); // the last thread gets its chunk + the remaining items
+        lastThreadChunkClus = chunkClus + (nclus - (chunkClus * numThreadsClus)); // the last thread gets its chunk + the remaining items
     }
     else if (nclus <= (cacheLinesClus * ELEMENTS_PER_CACHE_LINE)) // the array fits in a single cache line
         lastThreadChunkClus = nclus;
 
-    // std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
+    std::atomic<size_t> allCount(0);
+    csrM.row.resize(nclus + 1); // resize vector to the number of clusters
 
-    pthread_t threadsSum[numThreads], threadsAssign[numThreadsClus], reductionThreads[numThreadsClus];
+    std::cout << "Running with numThreads, numThreadsClus: " << numThreads << ", " << numThreadsClus << std::endl;
+
+    pthread_t threads[numThreads];
 
     pthread_attr_t attr;
     cpu_set_t cpu_set;
@@ -229,80 +226,38 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
         exit(EXIT_FAILURE);
     }
 
-    std::vector<uint32_t> valMVector(nclus, 0);
-    std::vector<uint32_t> auxValueVector(nclus * numThreads, 0);
-    // std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    pthread_barrier_init(&barrier, NULL, numThreads);
+    pthread_mutex_init(&mutex, NULL);
 
-    std::vector<reductionThread> redArgs;
-    redArgs.reserve(numThreadsClus);
+    std::vector<threadArgs> argsVector;
+    argsVector.reserve(numThreads);
 
-    std::vector<sumThread> sumArgs;
-    sumArgs.reserve(numThreads);
+    bool doAssign = 1;
 
-    std::vector<assignThread> assignArgs;
-    assignArgs.reserve(numThreadsClus);
+    printf("chunk, chunkClus: %ld, %ld\n", chunk, chunkClus);
+    printf("lastThreadChunk, lastThreadChunkClus: %ld, %ld\n", lastThreadChunk, lastThreadChunkClus);
 
-    for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
+    for (size_t i = 0; i < numThreads; i++)
     {
-        csrM.row[id - 1] = allCount.load();
-        clusterHasElements = 0;
+        size_t chunkThread = (i == (numThreads - 1)) ? lastThreadChunk : chunk;
+        size_t chunkClusThread = (i == (numThreadsClus - 1)) ? lastThreadChunkClus : chunkClus;
+        if (i == numThreadsClus)
+            doAssign = 0;
 
-        auxValueVector.assign(nclus * numThreads, 0);
-        sumArgs.clear();
-
-        for (size_t i = 0; i < numThreads; i++)
-        {
-            size_t start = i * chunk;
-            size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-            sumArgs.push_back({id, start, end, csr, c, auxValueVector, i * nclus, clusterHasElements});
-            pthread_create(&threadsSum[i], NULL, fnSumAux, (void *)&sumArgs[i]);
-        }
-
-        for (pthread_t &i : threadsSum)
-        {
-            pthread_join(i, NULL);
-        }
-
-        if (!clusterHasElements)
-            continue;
-
-        for (size_t i = 0; i < numThreadsClus; i++)
-        {
-            size_t id_start = i * chunkClus + 1;
-            size_t id_end = (i == (numThreadsClus - 1)) ? (id_start + lastThreadChunkClus) : (id_start + chunkClus);
-            redArgs.push_back({id_start, id_end, nclus, auxValueVector, valMVector});
-            pthread_create(&reductionThreads[i], NULL, fnReduction, (void *)&redArgs[i]);
-        }
-
-        for (pthread_t &i : reductionThreads)
-        {
-            pthread_join(i, NULL);
-        }
-
-        // for (size_t i = 0; i < nclus * numThreads; i++)
-        // {
-        //     valMVector[(i % nclus)] += auxValueVector[i]; // reduction
-        // }
-
-        for (size_t i = 0; i < numThreadsClus; i++)
-        {
-            size_t start = i * chunkClus;
-            size_t end = (i == (numThreadsClus - 1)) ? (start + lastThreadChunkClus) : (start + chunkClus);
-            assignArgs.push_back({start, end, valMVector, allCount, csrM});
-            pthread_create(&threadsAssign[i], NULL, fnAssignM, (void *)&assignArgs[i]);
-        }
-
-        for (pthread_t &i : threadsAssign)
-        {
-            pthread_join(i, NULL);
-        }
-
-        assignArgs.clear();
-        redArgs.clear();
-        valMVector.assign(nclus, 0);
+        argsVector.push_back({i, nclus, i * chunk, chunkThread, i * chunkClus, chunkClusThread, doAssign, csr, c, commonAux, allCount, csrM});
+        pthread_create(&threads[i], NULL, fnThread, (void *)&argsVector[i]);
     }
 
-    csrM.row[nclus] = allCount.load(); // last element of rowM is the number of non-zero elements of valM and colM
-    csrM.col.resize(allCount.load());
-    csrM.val.resize(allCount.load());
+    for (pthread_t &i : threads)
+    {
+        pthread_join(i, NULL);
+    }
+
+    csrM.row[nclus] = allCount; // last element of rowM is the number of non-zero elements of valM and colM
+    csrM.col.resize(allCount);
+    csrM.val.resize(allCount);
+
+    pthread_barrier_destroy(&barrier);
+    pthread_mutex_destroy(&mutex);
 }

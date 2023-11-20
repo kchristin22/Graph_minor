@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
     // readMM(A, filename, Nread, nzread);
 
     std::vector<size_t> conf(Nread, 1);
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 1000; i++)
     {
-        conf[i] = i + 1;
+        conf[i] = i+1;
         // printf("%ld ", conf[i]);
     }
     // printf("\n");
