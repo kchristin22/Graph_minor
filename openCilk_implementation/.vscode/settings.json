@@ -1,6 +1,6 @@
 {
   "cmake.debugConfig": {
-    "args": ["sd2010.mtx"]
+    "args": ["ri2010.mtx", "ri2010.txt"]
   },
   "files.associations": {
     "algorithm": "cpp",

@@ -2,34 +2,35 @@
 #include <cilk/cilk.h>
 #include "coo_to_csr.hpp"
 
-void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical)
+void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetric)
 {
-
+    // the input vectors must have the same size by definition (COO format)
     if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
     {
         printf("Error: at least one of the pairs has unmatched dimensions: (I,J), (I,V) \n");
         exit(1);
     }
+    // the corresponding output vectors of J and V must have the same size as them,
+    // and the row vector should be of size equal to the rows of the matrix, plus one (the latter is an implementation detail)
     if ((csr.row.size() != (N + 1)) || (csr.col.size() != coo.J.size()) || (csr.val.size() != coo.V.size()))
     {
         printf("Error: at least one of the outputs has wrong dimensions \n");
         exit(1);
     }
 
-    size_t nz = csr.val.size();
+    size_t nz = csr.val.size(); // number of non-zero elements
 
-    size_t x = 0, rowIndex = 0, localCount;
-    std::atomic<size_t> count(0);
+    size_t x = 0, rowIndex = 0;
 
-    if (symmetrical) // we can take advantage of the J vector being sorted and use that vector as the row index
-    {
-        csr.row[0] = 0;
+    if (symmetric)      // we can take advantage of the J vector being sorted and use that vector as the row index (swap I and J)
+    {                   // this part has not been tested
+        csr.row[0] = 0; // or csr.row[0] = x;
         for (size_t index = 0; index < nz; index++)
         {
-            if (coo.J[index] != x)
+            if (coo.J[index] != x) // the row index has changed
             {
-                csr.row[++rowIndex] = index; // offset of the next row
-                x = coo.J[index];            // new row
+                csr.row[++rowIndex] = index; // offset of the col and val vectors of the next row
+                x = coo.J[index];            // update the row index
             }
             csr.col[index] = coo.I[index];
             csr.val[index] = coo.V[index];
@@ -37,6 +38,9 @@ void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical
     }
     else
     {
+        std::atomic<size_t> count(0); // keep track of the number of non-zero elements in each row
+                                      // this variable is atomic because it is shared between threads and it is updated by each thread
+        size_t localCount;            // private variable of each thread used for storing the value of count fetched at this point before updating it
 
         for (size_t index = 0; index < N; index++)
         {
@@ -47,12 +51,13 @@ void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical
                 if (coo.I[j] != index)
                     continue;
 
-                localCount = count.fetch_add(1);
+                localCount = count.fetch_add(1); // the variable is updated only upon reading and storing the previous value,
+                                                 // to avoid skipping index positions
                 csr.col[localCount] = coo.J[j];
                 csr.val[localCount] = coo.V[j];
             }
         }
 
-        csr.row[N] = count;
+        csr.row[N] = count; // this element is only used to store the range of the col and val vectors corresponding to the last row
     }
 }

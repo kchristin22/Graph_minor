@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* COO representation: I, J, V */
 struct COO
 {
     std::vector<size_t> &I;
@@ -12,6 +13,7 @@ struct COO
     std::vector<uint32_t> &V;
 };
 
+/* CSR representation: row, col, val */
 struct CSR
 {
     std::vector<size_t> &row;
@@ -19,5 +21,12 @@ struct CSR
     std::vector<uint32_t> &val;
 };
 
-/* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val) */
-void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetrical, const uint32_t numThreads);
+/* Receives COO format as input (I, J, V) and transforms it to CSR (row, col, val)
+ * @params:
+ *    csr (output): CSR representation of the input COO
+ *    coo (input): COO representation of the input matrix
+ *    N (input): total number of rows/columns of the input matrix / dimensions of the input matrix
+ *    symmetric (input): true if the input matrix is symmetric, false otherwise
+ *    numThreads (input): number of threads to use in the parallel region
+ */
+void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetric, const uint32_t numThreads);

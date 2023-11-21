@@ -40,6 +40,13 @@ void readMM(std::vector<int> &A, const char *filename, const int N, const int nz
     /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
     /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
 
+    if (A.size() != (N * N))
+    {
+        printf("Resizing A vector to %ld\n", N * N);
+        A.resize(N * N, 0);
+    }
+    A.assign(N * N, 0);
+
     for (int i = 0; i < 2; i++)
     {
         fscanf(f, "%*[^\n]\n"); // skip first 2 lines, because fscanf doesn't move to the next line if not successfull
@@ -49,7 +56,7 @@ void readMM(std::vector<int> &A, const char *filename, const int N, const int nz
     for (index = 0; index < (nz); index++)
     {
         fscanf(f, "%d %d %d\n", &i, &j, &val);
-        A[(--i) * N + (--j)] = val; // we assume that all items of A are initialized to zero and that the matrix indexes in the file start from 1
+        A[(--i) * N + (--j)] = val; // we assume that the matrix indexes in the file start from 1
     }
 
     if (f != stdin)
@@ -68,7 +75,7 @@ void readMM(std::vector<int> &A, const char *filename, const int N, const int nz
     // }
 }
 
-void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t> &V, const char *filename, const int N, const int nz)
+void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t> &V, const char *filename, const int nz)
 {
 
     FILE *f = fopen(filename, "r");
@@ -76,6 +83,22 @@ void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t
     /* NOTE: when reading in doubles, ANSI C requires the use of the "l"  */
     /*   specifier as in "%lg", "%lf", "%le", otherwise errors will occur */
     /*  (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)            */
+
+    if (I.size() != nz)
+    {
+        printf("Resizing I vector to %d\n", nz);
+        I.resize(nz, 0);
+    }
+    if (J.size() != nz)
+    {
+        printf("Resizing J vector to %d\n", nz);
+        J.resize(nz, 0);
+    }
+    if (V.size() != nz)
+    {
+        printf("Resizing V vector to %d\n", nz);
+        V.resize(nz, 0);
+    }
 
     for (int i = 0; i < 2; i++)
     {

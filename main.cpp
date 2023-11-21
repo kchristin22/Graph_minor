@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     COO coo = {I, J, V};
     CSR csr = {row, col, val};
 
-    readMM(I, J, V, filename, Nread, nzread);
+    readMM(I, J, V, filename, nzread);
     coo_to_csr(csr, coo, Nread, false, numThreads);
 
     // for (size_t i = 0; i < nzread; i++)

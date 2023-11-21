@@ -1,6 +1,6 @@
 {
   "cmake.debugConfig": {
-    "args": ["sd2010.mtx"]
+    "args": ["tx2010.mtx", "tx2010.txt"]
   },
   "files.associations": {
     "array": "cpp",
