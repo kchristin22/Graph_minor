@@ -4,18 +4,18 @@
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     for (size_t i = 0; i < n; i++)
     {
-        discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+        discreteClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                     // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
     nclus = 0;
     for (size_t i = 0; i < n; i++)
     {
-        if (discreetClus[i] == 0)
+        if (discreteClus[i] == 0)
             continue;
         nclus += 1;
     }

@@ -9,12 +9,12 @@ inline void plus_s(void *l, void *r) { *(size_t *)l += *(size_t *)r; }
 inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     cilk_for(size_t i = 0; i < n; i++)
     {
         // printf("%lu", __cilkrts_get_worker_number());
-        discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+        discreteClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                     // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
@@ -22,7 +22,7 @@ inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::
 
     cilk_for(size_t i = 0; i < n; i++)
     {
-        if (discreetClus[i] == 0) // benefit from predicting
+        if (discreteClus[i] == 0) // benefit from predicting
             continue;
         nclus += 1;
     }

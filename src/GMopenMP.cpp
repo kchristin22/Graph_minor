@@ -4,7 +4,7 @@
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint32_t numThreads)
 {
     size_t n = c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     size_t chunk;
     calChunk(chunk, n, ELEMENTS_PER_CACHE_LINE_SIZE_T, numThreads);
@@ -14,7 +14,7 @@ inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint3
     for (size_t i = 0; i < n; i++)
     {
         // printf("thread %d, num of threads %d\n", omp_get_thread_num(), omp_get_num_threads());
-        discreetClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+        discreteClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                     // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
@@ -24,7 +24,7 @@ inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint3
 #pragma omp for nowait reduction(+ : nclus) schedule(dynamic, chunk)
     for (size_t i = 0; i < n; i++)
     {
-        if (discreetClus[i] == 0) // benefit from predicting
+        if (discreteClus[i] == 0) // benefit from predicting
             continue;
         nclus += 1;
     }

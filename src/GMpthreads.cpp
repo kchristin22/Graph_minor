@@ -31,12 +31,12 @@ void *fnNumClusters(void *args)
     nclusThread *nclusArgs = (nclusThread *)args;
     size_t n = nclusArgs->c.size();
 
-    if (nclusArgs->discreetClus.size() < n)
-        nclusArgs->discreetClus.resize(n, 0); // vector where the ith element is a if cluster i has a nodes
+    if (nclusArgs->discreteClus.size() < n)
+        nclusArgs->discreteClus.resize(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        nclusArgs->discreetClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+        nclusArgs->discreteClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                                             // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
@@ -44,7 +44,7 @@ void *fnNumClusters(void *args)
 
     for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        if (nclusArgs->discreetClus[i] == 0)
+        if (nclusArgs->discreteClus[i] == 0)
             continue;
         nclusArgs->nclus++;
     }
@@ -156,7 +156,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     // the whole vector would be updated each time an element is changed, so it would be as or more costly
 
     size_t nclus = 0;
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
     std::vector<size_t> nclusVector(numThreads, 0);
     std::vector<nclusThread> nclusArgs;
     nclusArgs.reserve(numThreads);
@@ -168,7 +168,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     {
         size_t start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-        nclusArgs.push_back({start, end, c, discreetClus, nclusVector[i]});
+        nclusArgs.push_back({start, end, c, discreteClus, nclusVector[i]});
         pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
     }
 

@@ -53,17 +53,17 @@ inline void *fnNumClusters(void *args)
 {
     nclusThread nclusArgs = *(nclusThread *)args;
     size_t n = nclusArgs.c.size();
-    std::vector<size_t> discreetClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     for (size_t i = nclusArgs.start; i < nclusArgs.end; i++)
     {
-        discreetClus[(nclusArgs.c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
+        discreteClus[(nclusArgs.c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
                                                 // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
     }
 
     for (size_t i = nclusArgs.start; i < nclusArgs.end; i++)
     {
-        if (discreetClus[i] == 0)
+        if (discreteClus[i] == 0)
             continue;
         nclusArgs.nclus.fetch_add(1);
     }
