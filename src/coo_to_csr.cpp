@@ -11,7 +11,7 @@ void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetric, 
         exit(1);
     }
     // the corresponding output vectors of J and V must have the same size as them,
-    // and the row vector should be of size equal to the rows of the matrix, plus one (the latter is an implementation detail)
+    // and the row vector should be of size equal to the rows of the matrix, plus one (the latter is an implementation specific)
     if ((csr.row.size() != (N + 1)) || (csr.col.size() != coo.J.size()) || (csr.val.size() != coo.V.size()))
     {
         printf("Error: at least one of the outputs has wrong dimensions \n");
