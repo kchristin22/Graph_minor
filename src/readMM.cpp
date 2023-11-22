@@ -47,10 +47,13 @@ void readMM(std::vector<int> &A, const char *filename, const int N, const int nz
     }
     A.assign(N * N, 0);
 
-    for (int i = 0; i < 2; i++)
+    char line[MM_MAX_LINE_LENGTH];
+
+    /* now continue scanning until you reach the end-of-comments */
+    do
     {
-        fscanf(f, "%*[^\n]\n"); // skip first 2 lines, because fscanf doesn't move to the next line if not successfull
-    }
+        fgets(line, MM_MAX_LINE_LENGTH, f);
+    } while (line[0] == '%'); // last line acquired doesn't start with % but contains the dimensions of the matrix, so my file pointer points to the data now
 
     int index, i, j, val;
     for (index = 0; index < (nz); index++)
@@ -100,10 +103,13 @@ void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t
         V.resize(nz, 0);
     }
 
-    for (int i = 0; i < 2; i++)
+    char line[MM_MAX_LINE_LENGTH];
+
+    /* now continue scanning until you reach the end-of-comments */
+    do
     {
-        fscanf(f, "%*[^\n]\n"); // skip first 2 lines, because fscanf doesn't move to the next line if not successfull
-    }
+        fgets(line, MM_MAX_LINE_LENGTH, f);
+    } while (line[0] == '%'); // last line acquired doesn't start with % but contains the dimensions of the matrix, so my file pointer points to the data now
 
     int index;
     for (index = 0; index < (nz); index++)
