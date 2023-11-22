@@ -58,7 +58,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
     std::vector<uint32_t> auxValueVector(Args->nclus, 0);
 
-    size_t x, endAux, localCount = 0;
+    size_t localCount = 0;
 
     for (size_t id = 1; id < (Args->nclus + 1); id++)
     { // cluster ids start from 1
@@ -74,13 +74,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
             if (id != Args->c[i]) // c[i] : cluster of row i of colCompressed / row
                 continue;
 
-            endAux = Args->csr.row[i + 1];
-
-            x = Args->csr.row[i];
-            if (x == endAux) // this row has no non-zero elements, maybe skip
-                continue;
-
-            for (size_t j = x; j < endAux; j++)
+            for (size_t j = Args->csr.row[i]; j < Args->csr.row[i + 1]; j++)
             {
                 auxValueVector[Args->c[Args->csr.col[j]] - 1] += (Args->csr.val[j]); // compress cols by summing the values of each cluster to the column the cluster id points to
             }
@@ -93,7 +87,9 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
             Args->commonAux[i].fetch_add(auxValueVector[i]);
         }
 
-        pthread_barrier_wait(&barrier);
+        pthread_barrier_wait(&barrier); // even if a thread didn't find any elements and its auxValueVector contains only zeros, it too must reach this point,
+                                        // due to the barrier awaiting a specific number of threads to reach it
+                                        // in addition, it has to execute its share of work(range) for the vectors of size nclus
 
         for (size_t i = startClus; i < endClus; i++)
         {
