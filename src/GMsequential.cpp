@@ -11,7 +11,7 @@ inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
         max = (c[i] > max) ? c[i] : max;
     }
 
-    nclus = max;
+    nclus = max; // number of clusters is equal to the maximum cluster id as the ids are contiguous
 }
 
 inline void numClustersGen(size_t &nclus, const std::vector<size_t> &c)
@@ -83,32 +83,33 @@ void seq(std::vector<int> &M, const std::vector<int> &A, const std::vector<size_
 // this is the main function used for sparse matrix implementation
 void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 {
+    size_t n = c.size();
+    size_t nz = csr.val.size();
+
     // the row vector should be of size equal to the rows of the matrix, plus one (the latter is an implementation specific)
     // we assume that the c vector's size is set correctly equal to the number of nodes of the input grapg / rows of the input matrix
-    if (csr.row.size() != (c.size() + 1))
+    if (csr.row.size() != (n + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (csr.col.size() != csr.val.size())
+    else if (csr.col.size() != nz)
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (csr.row.size() == (csr.col.size() + 1)) // the number of non-zero elements is equal to the number of rows,
-                                                     // resulting in CSR taking more space than dense matrix representation
+    else if (((n * n) - 2 * n) < (2 * nz)) // n^2 > n + 2*nz,  resulting in CSR taking more space than dense matrix representation
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((csrM.row.size() != csr.row.size()) || (csrM.col.size() != csr.col.size()) || (csrM.val.size() != csr.val.size()))
+    else if ((csrM.row.size() != (n + 1)) || (csrM.col.size() != nz) || (csrM.val.size() != nz))
     // in case the input graph is its minor and no further compression is possible, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
         exit(1);
     }
 
-    size_t n = c.size();
     size_t nclus;
 
     numClusters(nclus, c); // get the number of clusters
@@ -162,32 +163,33 @@ void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 void seqDenseCSR(std::vector<size_t> &rowM, std::vector<size_t> &colM, std::vector<uint32_t> &valM,
                  const std::vector<size_t> &row, const std::vector<size_t> &col, const std::vector<uint32_t> &val, const std::vector<size_t> &c)
 {
+    size_t n = c.size();
+    size_t nz = val.size();
+
     // the row vector should be of size equal to the rows of the matrix, plus one (the latter is an implementation specific)
     // we assume that the c vector's size is set correctly equal to the number of nodes of the input grapg / rows of the input matrix
-    if (row.size() != (c.size() + 1))
+    if (row.size() != (n + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (col.size() != val.size())
+    else if (col.size() != nz)
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (row.size() == col.size()) // the number of non-zero elements is equal to the number of rows,
-                                       // resulting in CSR taking more space than dense matrix representation
+    else if (((n * n) - 2 * n) < (2 * nz)) // n^2 > n + 2*nz,  resulting in CSR taking more space than dense matrix representation
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((rowM.size() != row.size()) || (colM.size() != col.size()) || (valM.size() != val.size()))
+    else if ((rowM.size() != (n + 1)) || (colM.size() != nz) || (valM.size() != nz))
     // in case the input graph is its minor and no further compression is possible, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
         exit(1);
     }
 
-    size_t n = c.size();
     size_t nclus;
 
     numClusters(nclus, c); // get the number of clusters

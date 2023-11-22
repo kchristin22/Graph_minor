@@ -109,29 +109,30 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
 
 void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads)
 {
-    if (csr.row.size() != (c.size() + 1))
+    size_t n = c.size();
+    size_t nz = csr.val.size();
+
+    if (csr.row.size() != (n + 1))
     {
         printf("Error: sizes of row and c are incompatible\n");
         exit(1);
     }
-    else if (csr.col.size() != csr.val.size())
+    else if (csr.col.size() != nz)
     {
         printf("Error: sizes of col and val are incompatible\n");
         exit(1);
     }
-    else if (csr.row.size() == (csr.col.size() + 1))
+    else if (((n * n) - 2 * n) < (2 * nz)) // n^2 > n + 2*nz,  resulting in CSR taking more space than dense matrix representation
     {
         printf("Error: CSR requires more space than dense matrix representation \n Use dense matrix implementation instead...\n");
         exit(1);
     }
-    else if ((csrM.row.size() != csr.row.size()) || (csrM.col.size() != csr.col.size()) || (csrM.val.size() != csr.val.size()))
+    else if ((csrM.row.size() != (n + 1)) || (csrM.col.size() != nz) || (csrM.val.size() != nz))
     // if the input graph is its the minor, the dimensions of the compressed vectors should be equal to the dimensions of the input vectors
     {
         printf("Error: at least one of the compressed vectors doesn't have enough allocated space \n");
         exit(1);
     }
-
-    size_t n = c.size();
 
     size_t chunk, lastThreadChunk;
     calChunk(chunk, lastThreadChunk, n, ELEMENTS_PER_CACHE_LINE_SIZE_T, numThreads);
