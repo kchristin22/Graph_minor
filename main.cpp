@@ -2,6 +2,8 @@
 #include <sys/time.h>
 #include <string.h>
 #include <fstream>
+#include <math.h>
+#include <iomanip>
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "GMsequential.hpp"
@@ -36,25 +38,38 @@ int main(int argc, char *argv[])
     std::vector<size_t> conf(Nread, 1);
     char *cfilename = (char *)argv[2];
     std::ifstream cfile(cfilename);
-
+    
     size_t c, index = 0;
     while (cfile >> c)
     {
         conf[index++] = c;
     }
 
+    // std::ofstream output;
+    // output.open("parsing.txt");
+
+    // size_t sc[10];
+
+    // for (size_t i = 0; i < 5; i++)
+    // {
+    //     cfile >> std::scientific >> sc[i];
+    //     output << std::fixed << std::setprecision(0) << sc[i] << std::endl;
+    // }
+    // output.close();
+
     // printf("conf: ");
-    // for (size_t i = 0; i < conf.size(); i++)
+    // for (size_t i = 0; i < 5; i++)
     // {
     //     printf("%ld ", conf[i]);
     // }
+    // printf("\n");
 
-    // for (int i = 0; i < 25000; i++)
+    // for (int i = 0; i < 4; i++)
     // {
     //     conf[i] = i + 1;
     //     // printf("%ld ", conf[i]);
     // }
-    // printf("\n");
+    // // printf("\n");
 
     printf("start\n");
     std::vector<size_t> I(nzread, 0);
@@ -140,6 +155,10 @@ int main(int argc, char *argv[])
     gettimeofday(&end, NULL);
     printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
+    printf("row size: %ld\n", csrM.row.size());
+    printf("col size: %ld\n", csrM.col.size());
+    printf("val size: %ld\n", csrM.val.size());
+
     std::vector<size_t> rowM3(Nread + 1, 0);
     rowM3 = rowM;
     std::vector<size_t> colM3(nzread, 0);
@@ -178,13 +197,12 @@ int main(int argc, char *argv[])
     std::vector<size_t> colM4(nzread, 0);
     colM4 = colM;
 
-    if (rowM2 != rowM4 || colM2.size() != colM4.size()){
+    if (rowM2 != rowM4 || colM2.size() != colM4.size())
+    {
         printf("seq not in accordance to pthreads\n");
         printf("rowM2.size: %ld, rowM4.size: %ld\n", rowM2.size(), rowM4.size());
         printf("colM2.size: %ld, colM4.size: %ld\n", colM2.size(), colM4.size());
     }
-
-
 
     // printf("rowM: ");
     // for (size_t i = 0; i < rowM.size(); i++)
