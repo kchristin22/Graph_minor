@@ -4,28 +4,23 @@
 #include "GMopenCilk.hpp"
 
 inline void zero_s(void *v) { *(size_t *)v = 0; }
-inline void plus_s(void *l, void *r) { *(size_t *)l += *(size_t *)r; }
+inline void max_s(void *l, void *r)
+{
+    if (*(size_t *)l < *(size_t *)r)
+        *(size_t *)l = *(size_t *)r;
+}
 
-inline void numClusters(size_t cilk_reducer(zero_s, plus_s) & nclus, const std::vector<size_t> &c)
+inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
-    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
+    size_t cilk_reducer(zero_s, max_s) max = 0;
 
     cilk_for(size_t i = 0; i < n; i++)
     {
-        // printf("%lu", __cilkrts_get_worker_number());
-        discreteClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                    // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+        max = (c[i] > max) ? c[i] : max;
     }
 
-    nclus = 0;
-
-    cilk_for(size_t i = 0; i < n; i++)
-    {
-        if (discreteClus[i] == 0) // benefit from predicting
-            continue;
-        nclus += 1;
-    }
+    nclus = max;
 }
 
 void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
@@ -53,7 +48,7 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     }
 
     size_t n = c.size();
-    size_t cilk_reducer(zero_s, plus_s) nclus = 0;
+    size_t nclus = 0;
 
     numClusters(nclus, c); // find the number of distinct clusters
 
@@ -63,7 +58,6 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
 
     csrM.row.resize(nclus + 1); // resize vector to the number of clusters
-
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1
     {

@@ -2,12 +2,19 @@
 
 #include "coo_to_csr.hpp"
 
-/* Calculates the number of discrete clusters
+/* Calculates the number of discrete clusters, in the case of having contiguous ids
  * @params:
  *   nclus (output): number of discrete clusters
  *   c (input): vector containing the cluster of each node of the input graph
  */
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c);
+
+/* Calculates the number of discrete clusters. This function is an idea of what counting the ids would look like if they weren't contiguous.
+ * @params:
+ *   nclus (output): number of discrete clusters
+ *   c (input): vector containing the cluster of each node of the input graph
+ */
+inline void numClustersGen(size_t &nclus, const std::vector<size_t> &c);
 
 /* Dense matrix implementation
  * @params:

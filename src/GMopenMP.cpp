@@ -1,33 +1,22 @@
 #include "GMopenMP.hpp"
-
+#include <pthread.h>
 
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c, const uint32_t numThreads)
 {
     size_t n = c.size();
-    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
 
     size_t chunk;
     calChunk(chunk, n, ELEMENTS_PER_CACHE_LINE_SIZE_T, numThreads);
 
-#pragma omp parallel num_threads(numThreads)
-#pragma omp for nowait schedule(static, chunk)
-    for (size_t i = 0; i < n; i++)
-    {
-        // printf("thread %d, num of threads %d\n", omp_get_thread_num(), omp_get_num_threads());
-        discreteClus[c[i] - 1] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                    // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
-    }
-
-    nclus = 0;
+    size_t maxVal = 0;
 
 #pragma omp parallel num_threads(numThreads)
-#pragma omp for nowait reduction(+ : nclus) schedule(dynamic, chunk)
+#pragma omp for nowait schedule(static, chunk) reduction(max : maxVal)
     for (size_t i = 0; i < n; i++)
     {
-        if (discreteClus[i] == 0) // benefit from predicting
-            continue;
-        nclus += 1;
+        maxVal = (c[i] > maxVal) ? c[i] : maxVal;
     }
+    nclus = maxVal;
 }
 
 void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uint32_t numThreads)
@@ -80,7 +69,13 @@ void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uin
 #pragma omp parallel num_threads(numThreads)
 #pragma omp for nowait schedule(static, chunkClus)
         for (size_t i = 0; i < nclus; i++)
+        {
             auxValueVector[i] = 0; // reset auxiliary vector
+            // printf("thread id: %d ", omp_get_thread_num());
+        }
+
+        // printf("thread id: %ld\n", pthread_self());
+        // printf("exited, main thread id: %d ", omp_get_thread_num());
 
         clusterHasElements = 0;
 
@@ -89,6 +84,7 @@ void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uin
         // reduction of each element of the auxiliary vector
         for (size_t i = 0; i < n; i++)
         {
+            // printf("thread id: %d ", omp_get_thread_num());
             if (id != c[i]) // c[i]: cluster of row i of colCompressed/row
                 continue;
 

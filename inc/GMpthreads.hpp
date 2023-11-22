@@ -13,7 +13,6 @@ struct nclusThread
     const size_t start;
     const size_t end;
     const std::vector<size_t> &c;
-    std::vector<size_t> &discreteClus;
     size_t &nclus;
 };
 

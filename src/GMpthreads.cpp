@@ -29,25 +29,14 @@ inline void calChunk(size_t &chunk, size_t &lastThreadChunk, const size_t n, con
 void *fnNumClusters(void *args)
 {
     nclusThread *nclusArgs = (nclusThread *)args;
-    size_t n = nclusArgs->c.size();
 
-    if (nclusArgs->discreteClus.size() < n)
-        nclusArgs->discreteClus.resize(n, 0); // vector where the ith element is a if cluster i has a nodes
+    size_t max = 0;
 
     for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
     {
-        nclusArgs->discreteClus[(nclusArgs->c[i] - 1)] = 1; // we assume that there is no ith row and column that are both zero so we know that all ids included in c exist in A
-                                                            // we can atomically add 1, instead, to the cluster of the ith row to know how many nodes are in each cluster
+        max = (nclusArgs->c[i] > max) ? nclusArgs->c[i] : max;
     }
-
-    pthread_barrier_wait(&barrier);
-
-    for (size_t i = nclusArgs->start; i < nclusArgs->end; i++)
-    {
-        if (nclusArgs->discreteClus[i] == 0)
-            continue;
-        nclusArgs->nclus++;
-    }
+    nclusArgs->nclus = max;
 
     return nullptr;
 }
@@ -88,7 +77,7 @@ void *fnThread(void *args) // need numThreads, numClus, CSR, CSRM, id of thread 
             endAux = Args->csr.row[i + 1];
 
             x = Args->csr.row[i];
-            if (x == endAux) // this row has no non-zero elements
+            if (x == endAux) // this row has no non-zero elements, maybe skip
                 continue;
 
             for (size_t j = x; j < endAux; j++)
@@ -156,7 +145,6 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     // the whole vector would be updated each time an element is changed, so it would be as or more costly
 
     size_t nclus = 0;
-    std::vector<size_t> discreteClus(n, 0); // vector where the ith element is a if cluster i has a nodes
     std::vector<size_t> nclusVector(numThreads, 0);
     std::vector<nclusThread> nclusArgs;
     nclusArgs.reserve(numThreads);
@@ -168,7 +156,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     {
         size_t start = i * chunk;
         size_t end = (i == (numThreads - 1)) ? (start + lastThreadChunk) : (start + chunk);
-        nclusArgs.push_back({start, end, c, discreteClus, nclusVector[i]});
+        nclusArgs.push_back({start, end, c, nclusVector[i]});
         pthread_create(&nclusThreads[i], NULL, fnNumClusters, (void *)&nclusArgs[i]);
     }
 
@@ -177,10 +165,14 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
         pthread_join(i, NULL);
     }
 
+    size_t max = 0;
+
     for (size_t i = 0; i < numThreads; i++)
     {
-        nclus += nclusVector[i];
+        if (nclusVector[i] > max)
+            max = nclusVector[i];
     }
+    nclus = max;
 
     // re-calculate cachelines and chunk sizes for the INT vectors
     calChunk(chunk, lastThreadChunk, n, ELEMENTS_PER_CACHE_LINE_INT, numThreads);

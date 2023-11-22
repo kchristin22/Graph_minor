@@ -3,6 +3,20 @@
 inline void numClusters(size_t &nclus, const std::vector<size_t> &c)
 {
     size_t n = c.size();
+
+    size_t max = 0; // ids start from 1
+
+    for (size_t i = 0; i < n; i++)
+    {
+        max = (c[i] > max) ? c[i] : max;
+    }
+
+    nclus = max;
+}
+
+inline void numClustersGen(size_t &nclus, const std::vector<size_t> &c)
+{
+    size_t n = c.size();
     std::vector<size_t> discreteClus(n, 0); // vector where the ith element is 1 if cluster i has any nodes
 
     for (size_t i = 0; i < n; i++)
