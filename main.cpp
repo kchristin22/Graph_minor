@@ -27,8 +27,6 @@ bool areCSRVectorsEqual(CSR &csrSeq, CSR &csrPar)
 
             std::vector<size_t>::iterator colIndex = std::find(startRange, startRange + csrSeq.row[i + 1], csrPar.col[j]); // find this column in the range of columns of the same row in Seq
                                                                                                                            // (each column appears at most once in each row)
-            // printf("valIndex: %ld\n", valIndex - valSeq.begin());
-
             // If col[j] is not found, vectors are not equal
             if (colIndex == csrSeq.col.end())
             {
@@ -85,6 +83,7 @@ int main(int argc, char *argv[])
         conf[index++] = c;
     }
 
+    /* Parsing the exponential data of the roads_usa cluster ids
     // std::ofstream output;
     // output.open("parsing.txt");
 
@@ -96,20 +95,7 @@ int main(int argc, char *argv[])
     //     output << std::fixed << std::setprecision(0) << sc[i] << std::endl;
     // }
     // output.close();
-
-    // printf("conf: ");
-    // for (size_t i = 0; i < 5; i++)
-    // {
-    //     printf("%ld ", conf[i]);
-    // }
-    // printf("\n");
-
-    // for (int i = 0; i < 4; i++)
-    // {
-    //     conf[i] = i + 1;
-    //     // printf("%ld ", conf[i]);
-    // }
-    // // printf("\n");
+    */
 
     printf("start\n");
     std::vector<size_t> I(nzread, 0);
@@ -124,12 +110,7 @@ int main(int argc, char *argv[])
     CSR csr = {row, col, val};
 
     readMM(I, J, V, filename, nzread);
-    coo_to_csr(csr, coo, Nread, false, numThreads);
-
-    // for (size_t i = 0; i < nzread; i++)
-    // {
-    //     printf("%d %d %d \n", I[i], J[i], V[i]);
-    // }
+    coo_to_csr(csr, coo, Nread);
 
     std::vector<size_t> rowM(Nread + 1, 0);
     std::vector<size_t> colM(nzread, 0);
@@ -166,7 +147,7 @@ int main(int argc, char *argv[])
 
     CSR csrPt = {rowPt, colPt, valPt};
 
-    gettimeofday(&start, NULL); // move this inside?
+    gettimeofday(&start, NULL);
     GMpthreads(csrPt, csr, conf, numThreads);
     gettimeofday(&end, NULL);
     printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));

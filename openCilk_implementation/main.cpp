@@ -30,13 +30,6 @@ int main(int argc, char *argv[])
         conf[index++] = c;
     }
 
-    // for (int i = 0; i < 8000; i++)
-    // {
-    //     conf[i] = i + 1;
-    //     // printf("%ld ", conf[i]);
-    // }
-    // printf("\n");
-
     std::vector<size_t> I(nzread, 0);
     std::vector<size_t> J(nzread, 0);
     std::vector<uint32_t> V(nzread, 0);
@@ -51,29 +44,6 @@ int main(int argc, char *argv[])
     readMM(I, J, V, filename, nzread);
 
     coo_to_csr(csr, coo, Nread, false);
-
-    // for (size_t i = 0; i < nzread; i++)
-    // {
-    //     printf("%d %d %d \n", I[i], J[i], V[i]);
-    // }
-
-    // printf("CSR:\n");
-    // printf("row: ");
-    // for (size_t i = 0; i < csr.row.size(); i++)
-    // {
-    //     printf("%ld ", csr.row[i]);
-    // }
-    // printf("\ncol: ");
-    // for (size_t i = 0; i < col.size(); i++)
-    // {
-    //     printf("%ld ", csr.col[i]);
-    // }
-    // printf("\nval: ");
-    // for (size_t i = 0; i < val.size(); i++)
-    // {
-    //     printf("%d ", csr.val[i]);
-    // }
-    // printf("\n");
 
     std::vector<size_t> rowM(Nread + 1, 0);
     std::vector<size_t> colM(nzread, 0);
@@ -91,22 +61,7 @@ int main(int argc, char *argv[])
     printf("row size: %ld\n", csrM.row.size());
     printf("col size: %ld\n", csrM.col.size());
     printf("val size: %ld\n", csrM.val.size());
-    // printf("rowM: ");
-    // for (size_t i = 0; i < csrM.row.size(); i++)
-    // {
-    //     printf("%ld ", csrM.row[i]);
-    // }
-    // printf("\ncolM: ");
-    // for (size_t i = 0; i < csrM.col.size(); i++)
-    // {
-    //     printf("%ld ", csrM.col[i]);
-    // }
-    // printf("\nvalM: ");
-    // for (size_t i = 0; i < csrM.val.size(); i++)
-    // {
-    //     printf("%d ", csrM.val[i]);
-    // }
-    // printf("\n");
+
 
     return 0;
 }
