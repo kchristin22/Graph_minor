@@ -4,6 +4,7 @@
 #include <fstream>
 #include <math.h>
 #include <iomanip>
+#include <algorithm>
 #include "writeMM.hpp"
 #include "readMM.hpp"
 #include "GMsequential.hpp"
@@ -11,6 +12,45 @@
 #include "GMpthreads.hpp"
 
 #define NUM_THREADS 4
+
+bool areVectorsEqual(CSR &csrSeq, CSR &csrPar)
+{
+    if (csrSeq.row != csrPar.row || csrSeq.col.size() != csrPar.col.size() || csrSeq.val.size() != csrPar.val.size() || csrSeq.col.size() != csrSeq.val.size())
+        return false;
+
+    for (size_t i = 0; i < csrSeq.row.size(); i++)
+    {
+        std::vector<size_t>::iterator startRange = csrSeq.col.begin() + csrSeq.row[i];
+
+        for (size_t j = csrSeq.row[i]; j < csrSeq.row[i + 1]; j++)
+        {
+
+            std::vector<size_t>::iterator colIndex = std::find(startRange, startRange + csrSeq.row[i + 1], csrPar.col[j]); // find this column in the range of columns of the same row in Seq
+                                                                                                                           // (each column appears at most once in each row)
+            // printf("valIndex: %ld\n", valIndex - valSeq.begin());
+
+            // If col[j] is not found, vectors are not equal
+            if (colIndex == csrSeq.col.end())
+            {
+                printf("colIndex == colSeq.end()\n");
+                return false;
+            }
+
+            // Get the index of col[j] in colSeq and thus valSeq
+            uint32_t valIndex = std::distance(csrSeq.col.begin(), colIndex);
+
+            // Check if these values are in the same column cluster
+            if (csrPar.val[j] != csrSeq.val[valIndex])
+            {
+                printf("col[i] != colSeq[colIndex]\n");
+                printf(" j = %ld, colIndex = %ld\n", j, valIndex);
+                return false;
+            }
+        }
+    }
+    // Vectors are equal
+    return true;
+}
 
 int main(int argc, char *argv[])
 {
@@ -38,7 +78,7 @@ int main(int argc, char *argv[])
     std::vector<size_t> conf(Nread, 1);
     char *cfilename = (char *)argv[2];
     std::ifstream cfile(cfilename);
-    
+
     size_t c, index = 0;
     while (cfile >> c)
     {
@@ -141,17 +181,14 @@ int main(int argc, char *argv[])
     printf("col size: %ld\n", csrM.col.size());
     printf("val size: %ld\n", csrM.val.size());
 
-    std::vector<size_t> rowM2(Nread + 1, 0);
-    rowM2 = rowM;
-    std::vector<size_t> colM2(nzread, 0);
-    colM2 = colM;
+    std::vector<size_t> rowMP(Nread + 1, 0);
+    std::vector<size_t> colMP(nzread, 0);
+    std::vector<uint32_t> valMP(nzread, 0);
 
-    colM.resize(nzread, 0);
-    valM.resize(nzread, 0);
-    rowM.resize(Nread + 1, 0);
+    CSR csrMP = {rowMP, colMP, valMP};
 
     gettimeofday(&start, NULL);
-    GMopenMP(csrM, csr, conf, numThreads);
+    GMopenMP(csrMP, csr, conf, numThreads);
     gettimeofday(&end, NULL);
     printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
@@ -159,13 +196,7 @@ int main(int argc, char *argv[])
     printf("col size: %ld\n", csrM.col.size());
     printf("val size: %ld\n", csrM.val.size());
 
-    std::vector<size_t> rowM3(Nread + 1, 0);
-    rowM3 = rowM;
-    std::vector<size_t> colM3(nzread, 0);
-    colM3 = colM;
-
-    if (rowM2 != rowM3 || colM2.size() != colM3.size())
-        printf("seq not in accordance to openmp\n");
+    printf("Are seq and openmp vectors equal? %d\n", areVectorsEqual(csrM, csrMP));
 
     // printf("rowM: ");
     // for (size_t i = 0; i < rowM.size(); i++)
@@ -184,25 +215,25 @@ int main(int argc, char *argv[])
     // }
     // printf("\n");
 
-    colM.resize(nzread, 0);
-    valM.resize(nzread, 0);
-    rowM.resize(Nread + 1, 0);
+    // colM.resize(nzread, 0);
+    // valM.resize(nzread, 0);
+    // rowM.resize(Nread + 1, 0);
 
-    gettimeofday(&start, NULL); // move this inside?
-    GMpthreads(csrM, csr, conf, numThreads);
-    gettimeofday(&end, NULL);
-    printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
-    std::vector<size_t> rowM4(Nread + 1, 0);
-    rowM4 = rowM;
-    std::vector<size_t> colM4(nzread, 0);
-    colM4 = colM;
+    // gettimeofday(&start, NULL); // move this inside?
+    // GMpthreads(csrM, csr, conf, numThreads);
+    // gettimeofday(&end, NULL);
+    // printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
+    // std::vector<size_t> rowM4(Nread + 1, 0);
+    // rowM4 = rowM;
+    // std::vector<size_t> colM4(nzread, 0);
+    // colM4 = colM;
 
-    if (rowM2 != rowM4 || colM2.size() != colM4.size())
-    {
-        printf("seq not in accordance to pthreads\n");
-        printf("rowM2.size: %ld, rowM4.size: %ld\n", rowM2.size(), rowM4.size());
-        printf("colM2.size: %ld, colM4.size: %ld\n", colM2.size(), colM4.size());
-    }
+    // if (rowM2 != rowM4 || colM2.size() != colM4.size())
+    // {
+    //     printf("seq not in accordance to pthreads\n");
+    //     printf("rowM2.size: %ld, rowM4.size: %ld\n", rowM2.size(), rowM4.size());
+    //     printf("colM2.size: %ld, colM4.size: %ld\n", colM2.size(), colM4.size());
+    // }
 
     // printf("rowM: ");
     // for (size_t i = 0; i < rowM.size(); i++)
