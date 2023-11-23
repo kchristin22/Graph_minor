@@ -1,8 +1,27 @@
 #include <atomic>
 #include <omp.h>
+#include <iostream>
 #include "GMopenMP.hpp"
 
-void coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetric, const uint32_t numThreads)
+void coo_to_csr(CSR &csr, const COO &coo, const size_t n)
+{
+
+    const size_t nnz = coo.I.size();
+
+    if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
+    {
+        std::cout << "coo_to_csr: I, J, V must have the same size" << std::endl;
+        exit(1);
+    }
+
+    csr.row.resize(n + 1);
+    csr.col.resize(nnz);
+    csr.val.resize(nnz);
+
+    coo_tocsr(n, n, nnz, coo.I.data(), coo.J.data(), coo.V.data(), csr.row.data(), csr.col.data(), csr.val.data());
+}
+
+void slow_coo_to_csr(CSR &csr, const COO &coo, const size_t N, const bool symmetric, const uint32_t numThreads)
 {
     // the input vectors must have the same size by definition (COO format)
     if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
