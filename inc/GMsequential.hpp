@@ -16,6 +16,14 @@ inline void numClusters(size_t &nclus, const std::vector<size_t> &c);
  */
 inline void numClustersGen(size_t &nclus, const std::vector<size_t> &c);
 
+/* CSR matrix implementation, this is the function used
+ * @params:
+ *   csrM (output): CSR representation of the adjacency matrix corresponding to the graph minor of the input graph
+ *   csr (input): CSR representation of the adjacency matrix of the input graph
+ *   c (input): vector containing the cluster of each node of the input graph
+ */
+void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);
+
 /* Dense matrix implementation
  * @params:
  *   M (output): dense matrix representation of the adjacency matrix corresponding to the graph minor of the input graph
@@ -23,14 +31,6 @@ inline void numClustersGen(size_t &nclus, const std::vector<size_t> &c);
  *   c (input): vector containing the cluster of each node of the input graph
  */
 void seq(std::vector<int> &M, const std::vector<int> &A, const std::vector<size_t> &c);
-
-/* CSR matrix implementation, this is the function used
- * @params:
- *   csrM (output): csr representation of the adjacency matrix corresponding to the graph minor of the input graph
- *   csr (input): csr representation of the adjacency matrix of the input graph
- *   c (input): vector containing the cluster of each node of the input graph
- */
-void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c);
 
 /* Calculates CSR result using dense matrix implementation in intermediate steps
  * @params:

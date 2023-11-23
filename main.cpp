@@ -13,7 +13,7 @@
 
 #define NUM_THREADS 4
 
-bool areVectorsEqual(CSR &csrSeq, CSR &csrPar)
+bool areCSRVectorsEqual(CSR &csrSeq, CSR &csrPar)
 {
     if (csrSeq.row != csrPar.row || csrSeq.col.size() != csrPar.col.size() || csrSeq.val.size() != csrPar.val.size() || csrSeq.col.size() != csrSeq.val.size())
         return false;
@@ -37,7 +37,7 @@ bool areVectorsEqual(CSR &csrSeq, CSR &csrPar)
             }
 
             // Get the index of col[j] in colSeq and thus valSeq
-            uint32_t valIndex = std::distance(csrSeq.col.begin(), colIndex);
+            size_t valIndex = std::distance(csrSeq.col.begin(), colIndex);
 
             // Check if these values are in the same column cluster
             if (csrPar.val[j] != csrSeq.val[valIndex])
@@ -130,23 +130,6 @@ int main(int argc, char *argv[])
     // {
     //     printf("%d %d %d \n", I[i], J[i], V[i]);
     // }
-    // printf("CSR:\n");
-    // printf("row: ");
-    // for (size_t i = 0; i < row.size(); i++)
-    // {
-    //     printf("%d ", row[i]);
-    // }
-    // printf("\ncol: ");
-    // for (size_t i = 0; i < col.size(); i++)
-    // {
-    //     printf("%d ", col[i]);
-    // }
-    // printf("\nval: ");
-    // for (size_t i = 0; i < val.size(); i++)
-    // {
-    //     printf("%d ", val[i]);
-    // }
-    // printf("\n");
 
     std::vector<size_t> rowM(Nread + 1, 0);
     std::vector<size_t> colM(nzread, 0);
@@ -159,23 +142,6 @@ int main(int argc, char *argv[])
     seq(csrM, csr, conf);
     gettimeofday(&end, NULL);
     printf("seq time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
-
-    // printf("rowM: ");
-    // for (size_t i = 0; i < rowM.size(); i++)
-    // {
-    //     printf("%ld ", rowM[i]);
-    // }
-    // printf("\ncolM: ");
-    // for (size_t i = 0; i < colM.size(); i++)
-    // {
-    //     printf("%ld ", colM[i]);
-    // }
-    // printf("\nvalM: ");
-    // for (size_t i = 0; i < valM.size(); i++)
-    // {
-    //     printf("%ld ", valM[i]);
-    // }
-    // printf("\n");
 
     printf("row size: %ld\n", csrM.row.size());
     printf("col size: %ld\n", csrM.col.size());
@@ -192,65 +158,20 @@ int main(int argc, char *argv[])
     gettimeofday(&end, NULL);
     printf("parallel time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    printf("row size: %ld\n", csrM.row.size());
-    printf("col size: %ld\n", csrM.col.size());
-    printf("val size: %ld\n", csrM.val.size());
+    printf("Are seq and openmp vectors equal? %d\n", areCSRVectorsEqual(csrM, csrMP));
 
-    printf("Are seq and openmp vectors equal? %d\n", areVectorsEqual(csrM, csrMP));
+    std::vector<size_t> rowPt(Nread + 1, 0);
+    std::vector<size_t> colPt(nzread, 0);
+    std::vector<uint32_t> valPt(nzread, 0);
 
-    // printf("rowM: ");
-    // for (size_t i = 0; i < rowM.size(); i++)
-    // {
-    //     printf("%ld ", rowM[i]);
-    // }
-    // printf("\ncolM: ");
-    // for (size_t i = 0; i < colM.size(); i++)
-    // {
-    //     printf("%ld ", colM[i]);
-    // }
-    // printf("\nvalM: ");
-    // for (size_t i = 0; i < valM.size(); i++)
-    // {
-    //     printf("%ld ", valM[i]);
-    // }
-    // printf("\n");
+    CSR csrPt = {rowPt, colPt, valPt};
 
-    // colM.resize(nzread, 0);
-    // valM.resize(nzread, 0);
-    // rowM.resize(Nread + 1, 0);
+    gettimeofday(&start, NULL); // move this inside?
+    GMpthreads(csrPt, csr, conf, numThreads);
+    gettimeofday(&end, NULL);
+    printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
 
-    // gettimeofday(&start, NULL); // move this inside?
-    // GMpthreads(csrM, csr, conf, numThreads);
-    // gettimeofday(&end, NULL);
-    // printf("pthread time: %ld\n", ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec)));
-    // std::vector<size_t> rowM4(Nread + 1, 0);
-    // rowM4 = rowM;
-    // std::vector<size_t> colM4(nzread, 0);
-    // colM4 = colM;
-
-    // if (rowM2 != rowM4 || colM2.size() != colM4.size())
-    // {
-    //     printf("seq not in accordance to pthreads\n");
-    //     printf("rowM2.size: %ld, rowM4.size: %ld\n", rowM2.size(), rowM4.size());
-    //     printf("colM2.size: %ld, colM4.size: %ld\n", colM2.size(), colM4.size());
-    // }
-
-    // printf("rowM: ");
-    // for (size_t i = 0; i < rowM.size(); i++)
-    // {
-    //     printf("%ld ", rowM[i]);
-    // }
-    // printf("\ncolM: ");
-    // for (size_t i = 0; i < colM.size(); i++)
-    // {
-    //     printf("%ld ", colM[i]);
-    // }
-    // printf("\nvalM: ");
-    // for (size_t i = 0; i < valM.size(); i++)
-    // {
-    //     printf("%ld ", valM[i]);
-    // }
-    // printf("\n");
+    printf("Are seq and pthreads vectors equal? %d\n", areCSRVectorsEqual(csrM, csrPt));
 
     return 0;
 }
