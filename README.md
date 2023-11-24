@@ -11,7 +11,7 @@ clusters, ranging from 1 to the amount of discrete clusters, in the equivalent p
 
 Comparison of implementations using the median time in us:
 
-| Data set | Matlab |  Sequential | OpenMP (4 threads) | Pthreads  (4 threads) | OpenCilk  (4 threads)|
+| Dataset | Matlab |  Sequential | OpenMP (4 threads) | Pthreads  (4 threads) | OpenCilk  (4 threads)|
 |---------|-----------|-----------|----------|---------| -----------|
 | ri2010  | 4500 | 34289 | 9767 | 33618 |  19133 |
 | nj2010  | 56600 |1584908 | 339045 | 545741 | 544979 |
@@ -21,7 +21,7 @@ Comparison of implementations using the median time in us:
 
 OpenCilk manages to outperform OpenMP in larger data sets, despite the use of a common atomic vector. This is assumed to stem from its work-stealing properties.
 
-![image](https://github.com/kchristin22/Graph_minor/assets/74819775/58646b43-75ec-4073-94b8-110b17959da5)
+![image](https://github.com/kchristin22/Graph_minor/assets/74819775/9bd03d4f-7ee9-4f6e-95d5-73285d22b585)
 
  The `us2010` dataset was never managed to be parsed correctly or quicky enough.
        
