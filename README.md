@@ -21,6 +21,8 @@ Comparison of implementations using the median time in us:
 
 OpenCilk manages to outperform OpenMP in larger data sets, despite the use of a common atomic vector. This is assumed to stem from its work-stealing properties.
 
+The version of Matlab was measured using its fastest implementation of the two.
+
 ![image](https://github.com/kchristin22/Graph_minor/assets/74819775/9bd03d4f-7ee9-4f6e-95d5-73285d22b585)
 
  The `us2010` dataset was never managed to be parsed correctly or quicky enough.
