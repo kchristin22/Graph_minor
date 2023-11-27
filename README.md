@@ -29,3 +29,6 @@ The version of Matlab was measured using its fastest implementation of the two.
  The `us2010` dataset was never managed to be parsed correctly or quicky enough.
        
 
+**Example of a matrix to test the sequential algorithm's validity:**
+A=[0, 6, 8, 0; 10,0, 0, 0; 2, 0, 8, 4; 0, 0,3,6];
+c=[2,1,1,1];
