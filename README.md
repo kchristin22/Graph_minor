@@ -1,6 +1,6 @@
 # Graph_minor
 
-## (!!!) There's an error in the benchmarks in the report: instead of pthreads, OpenMP was run. The fixed tests are below. Also, the COO to CSR function does not include adding the missing elements of symmetric matrixes, and thus the result differs from Matlab. Despite of not deeming it worthy to do it (as the properties of the graph do not change, rows and columns are filled correctly), the transition from COO to CSR is out of scope for this project.
+## (!!!) There's an error in the benchmarks in the report: instead of pthreads, OpenMP was run. The fixed tests are below. Also, the COO to CSR function does not include adding the missing elements of symmetric matrixes, and thus the result differs from Matlab. Despite of not deeming it worthy to do it (as the properties of the graph do not change, rows and columns are filled correctly), the transition from COO to CSR is out of scope for this project. You can validate the program by running it with a small matrix that you can manually write in Matlab(include all the elements) and in C++.
 
 ### **About:**
 
