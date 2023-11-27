@@ -2,7 +2,7 @@
 
 ## (!!!) There's an error in the benchmarks in the report: instead of pthreads, OpenMP was run. The fixed tests are below. 
 ## You may need to remove the condition check on using sparse or dense matrix implementation for the program to run for matrices where n $^2$ > n + 2*nz. 
-## After validating the sequential algorithm you can check the validity of the parallel implementation by using the function`areCSRVectorsEqual` for larger datasets as well.
+## The last commit added after the deadline only concerns the COO file parsing and is out of scope of the project. It is to help you compare the results to Matlab's when the matrix is symmetric, as MM doesn't add all the elemnets. Hence, it doesn't affect the benchamrks, nor change the algorithm used. After validating the sequential algorithm you can check the validity of the parallel implementation by using the function`areCSRVectorsEqual` for larger datasets as well.
 
 ### **About:**
 
