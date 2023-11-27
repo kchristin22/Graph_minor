@@ -5,7 +5,7 @@
 #include <queue>
 #include "coo_to_csr.hpp"
 
-#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(int)) // size of a cache line is 64 bytes
+#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(uint64_t)) // size of a cache line is 64 bytes
 #define ELEMENTS_PER_CACHE_LINE_SIZE_T (64 / sizeof(size_t))
 
 /* Arguments of the threads responsible to calculate the number of clusters */
@@ -27,7 +27,7 @@ struct threadArgs
     const size_t endClus;
     const CSR &csr; // the input matrix in CSR format
     const std::vector<size_t> &c;
-    std::vector<std::atomic<uint32_t>> &commonAux; // common auxiliary vector to save compressed row and col of a single cluster
+    std::vector<std::atomic<uint64_t>> &commonAux; // common auxiliary vector to save compressed row and col of a single cluster
     std::atomic<size_t> &allCount;                 // common counter to keep track of the index of the col and val CSR output
     CSR &csrM;                                     // output matrix in CSR format
 };

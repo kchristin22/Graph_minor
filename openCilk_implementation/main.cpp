@@ -16,9 +16,12 @@ int main(int argc, char *argv[])
     char *filename = (char *)argv[1];
 
     int Nread;
-    int nzread;
+    int nz;
+    bool symmetric = false;
 
-    verifyMMfile(&Nread, &nzread, filename);
+    verifyMMfile(&Nread, &nz, symmetric, filename);
+
+    size_t nzread = nz;
 
     std::vector<size_t> conf(Nread, 1);
     char *cfilename = (char *)argv[2];
@@ -32,22 +35,22 @@ int main(int argc, char *argv[])
 
     std::vector<size_t> I(nzread, 0);
     std::vector<size_t> J(nzread, 0);
-    std::vector<uint32_t> V(nzread, 0);
+    std::vector<uint64_t> V(nzread, 0);
 
     std::vector<size_t> row(Nread + 1, 0);
     std::vector<size_t> col(nzread, 0);
-    std::vector<uint32_t> val(nzread, 0);
+    std::vector<uint64_t> val(nzread, 0);
 
     CSR csr = {row, col, val};
     COO coo = {I, J, V};
 
     readMM(I, J, V, filename, nzread);
 
-    coo_to_csr(csr, coo, Nread, false);
+    coo_to_csr(csr, nzread, coo, Nread, symmetric);
 
     std::vector<size_t> rowM(Nread + 1, 0);
     std::vector<size_t> colM(nzread, 0);
-    std::vector<uint32_t> valM(nzread, 0);
+    std::vector<uint64_t> valM(nzread, 0);
 
     CSR csrM = {rowM, colM, valM};
 

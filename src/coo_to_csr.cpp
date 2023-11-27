@@ -3,15 +3,31 @@
 #include <iostream>
 #include "GMopenMP.hpp"
 
-void coo_to_csr(CSR &csr, const COO &coo, const size_t n)
+void coo_to_csr(CSR &csr, size_t &nnz, const COO &coo, const size_t n, const bool symmetric)
 {
 
-    const size_t nnz = coo.I.size();
+    nnz = coo.I.size();
 
     if (coo.I.size() != coo.J.size() || coo.I.size() != coo.V.size())
     {
         std::cout << "coo_to_csr: I, J, V must have the same size" << std::endl;
         exit(1);
+    }
+
+    if (symmetric)
+    {
+        size_t allCount = 0;
+        for (size_t i = 0; i < nnz; i++)
+        {
+            if (coo.I[i] != coo.J[i])
+            {
+                coo.I.push_back(coo.J[i]);
+                coo.J.push_back(coo.I[i]);
+                coo.V.push_back(coo.V[i]);
+                allCount++;
+            }
+        }
+        nnz += allCount;
     }
 
     csr.row.resize(n + 1);

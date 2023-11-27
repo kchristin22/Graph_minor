@@ -57,7 +57,7 @@ void GMopenMP(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const uin
 
     size_t end, allCount = 0, localCount; // loop variables
     bool clusterHasElements = 0;          // flag that denotes if the cluster has any elements
-    uint32_t auxValueVector[nclus]{0};    // auxiliary array that will contain all the non-zero values of each cluster (element of rowM)
+    uint64_t auxValueVector[nclus]{0};    // auxiliary array that will contain all the non-zero values of each cluster (element of rowM)
     csrM.row.resize(nclus + 1);           // resize vector to the number of clusters
 
     size_t chunk, chunkClus;

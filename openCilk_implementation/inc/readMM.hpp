@@ -9,9 +9,10 @@
  * @params:
  *    N (output): total number of rows/columns of the input matrix
  *    nz (output): total number of non-zero elements of the input matrix
+ *    symmetric (output): true if the input matrix is symmetric, false otherwise
  *    filename (input): name of the file to be read
  */
-void verifyMMfile(int *N, int *nz, const char *filename);
+void verifyMMfile(int *N, int *nz, bool &symmetric, const char *filename);
 
 /* Read the input matrix in COO format from the MM file and store it in an output matrix
  * @params:
@@ -30,4 +31,4 @@ void readMM(std::vector<int> &A, const char *filename, const int N, const int nz
  *   filename (input): name of the file to be read
  *   nz (input): total number of non-zero elements of the input matrix to use for scanning the input matrix and for the allocation of the output vectors
  */
-void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint32_t> &V, const char *filename, const int nz);
+void readMM(std::vector<size_t> &I, std::vector<size_t> &J, std::vector<uint64_t> &V, const char *filename, const int nz);

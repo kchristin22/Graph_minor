@@ -70,7 +70,7 @@ void seq(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
 
     size_t end, allCount = 0;                    // loop variables
     bool clusterHasElements = 0;                 // flag that denotes if this cluster has any elements
-    std::vector<uint32_t> auxValueVector(nclus); // auxiliary vector that contains all the values, zero and non-zero, of a cluster
+    std::vector<uint64_t> auxValueVector(nclus); // auxiliary vector that contains all the values, zero and non-zero, of a cluster
     csrM.row.resize(nclus + 1);                  // resize vector to the number of clusters, plus one (implementation specific)
 
     for (size_t id = 1; id < (nclus + 1); id++) // cluster ids start from 1

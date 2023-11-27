@@ -59,7 +59,7 @@ void GMopenCilk(CSR &csrM, const CSR &csr, const std::vector<size_t> &c)
     size_t end, localCount;
     std::atomic<uint32_t> allCount(0);                        // common atomic variable to keep track of the index of the col and val CSR output
     bool clusterHasElements = 0;                              // flag that denotes if this cluster has any elements
-    std::vector<std::atomic<uint32_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    std::vector<std::atomic<uint64_t>> auxValueVector(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
 
     csrM.row.resize(nclus + 1); // resize vector to the number of clusters
 

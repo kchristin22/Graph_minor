@@ -52,7 +52,7 @@ void *fnThread(void *args)
     if (endClus > Args->nclus)
         endClus = Args->nclus;
 
-    std::vector<uint32_t> auxValueVector(Args->nclus, 0); // local auxiliary vector to save compressed row and col of a single cluster
+    std::vector<uint64_t> auxValueVector(Args->nclus, 0); // local auxiliary vector to save compressed row and col of a single cluster
 
     size_t localCount = 0; // local storage of the index of the col and val CSR output
 
@@ -178,7 +178,7 @@ void GMpthreads(CSR &csrM, const CSR &csr, const std::vector<size_t> &c, const u
     std::vector<threadArgs> argsVector;
     argsVector.reserve(numThreads);
 
-    std::vector<std::atomic<uint32_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
+    std::vector<std::atomic<uint64_t>> commonAux(nclus); // auxiliary vector that will contain all the non-zero values of each cluster (element of rowM)
     // the above part of calculating the nclus could not be moved inside the fnThread function,
     // as std::atomic objects are not copyable and thus a vector of them cannot be resized
 

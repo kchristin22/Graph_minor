@@ -3,7 +3,7 @@
 #include <omp.h>
 #include "coo_to_csr.hpp"
 
-#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(int)) // size of a cache line is 64 bytes
+#define ELEMENTS_PER_CACHE_LINE_INT (64 / sizeof(uint64_t)) // size of a cache line is 64 bytes
 #define ELEMENTS_PER_CACHE_LINE_SIZE_T (64 / sizeof(size_t))
 
 /* Calculate the number of elements (chunk) to appoint to a thread to make computations thread-safe. This function is used for coo-to-csr conversion as well.
