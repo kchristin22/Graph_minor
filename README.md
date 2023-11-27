@@ -1,7 +1,8 @@
 # Graph_minor
 
 ## (!!!) There's an error in the benchmarks in the report: instead of pthreads, OpenMP was run. The fixed tests are below. 
-## Also, the COO to CSR function does not include adding the missing elements of symmetric matrixes, and thus the result differs from Matlab. Despite of not deeming it worthy to do it (as the properties of the graph do not change, rows and columns are filled correctly), the transition from COO to CSR is out of scope for this project. You can validate the program by running it with a small matrix that you can manually write in Matlab(include all the elements) and in C++. You may need to remove the condition check on using sparse or dense matrix implementation for the program to run for matrices where n $^2$ > n + 2*nz. An example of a matrix to use is given below. After validating the sequential algorithm you can check the validity of the parallel implementation by using the function`areCSRVectorsEqual` for larger datasets as well.
+## You may need to remove the condition check on using sparse or dense matrix implementation for the program to run for matrices where n $^2$ > n + 2*nz. 
+## After validating the sequential algorithm you can check the validity of the parallel implementation by using the function`areCSRVectorsEqual` for larger datasets as well.
 
 ### **About:**
 
@@ -28,7 +29,3 @@ The version of Matlab was measured using its fastest implementation of the two.
 
  The `us2010` dataset was never managed to be parsed correctly or quicky enough.
        
-
-**Example of a matrix to test the sequential algorithm's validity:**
-A=[0, 6, 8, 0; 10,0, 0, 0; 2, 0, 8, 4; 0, 0,3,6];
-c=[2,1,1,1];
